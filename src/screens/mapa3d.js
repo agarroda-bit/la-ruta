@@ -246,7 +246,7 @@ export function createMap3D() {
   const state = {
     mode: 'portada', t: 0, routeDraw: 0, planeU: 0, planeTarget: 0, focus: 'phuket',
     camPos: new THREE.Vector3(0, 40, 30), camLook: new THREE.Vector3(0, 0, 0),
-    portadaT: 0, flyResolve: null, completed: {},
+    portadaT: 0, flyResolve: null, completed: {}, zoom: 1, zoomTarget: 1,
   };
 
   function setDraw(u) { route.geometry.setDrawRange(0, Math.floor(clamp(u, 0, 1) * routeIdx / 3) * 3); }
@@ -255,7 +255,9 @@ export function createMap3D() {
   const look = new THREE.Vector3(), camTarget = new THREE.Vector3();
   const ctrl = {
     scene, camera, pins, curve, stopU, order: ORDER,
-    setMode(m) { state.mode = m; state.portadaT = 0; },
+    setMode(m) { state.mode = m; state.portadaT = 0; state.zoom = state.zoomTarget = m === 'mapa' ? 1.6 : 1; if (m === 'mapa') state.zoomTarget = 1; },
+    // acercar la cámara a la parada antes de entrar en la etapa
+    zoomIn() { state.zoomTarget = 0.28; },
     setProgress(doneIds) { state.completed = {}; for (const id of doneIds) state.completed[id] = true; },
     focusStage(id) { state.focus = id; },
     // el avión vuela hasta la parada; devuelve promesa al llegar
@@ -274,7 +276,12 @@ export function createMap3D() {
     update(dt) {
       state.t += dt;
       oceanMat.uniforms.t.value = state.t;
-      for (const c of clouds) { c.position.x += c.userData.v * dt; if (c.position.x > 28) c.position.x = -28; }
+      for (const c of clouds) {
+        c.position.x += c.userData.v * dt; if (c.position.x > 28) c.position.x = -28;
+        // al acercarse a una parada, las nubes se apartan para no tapar
+        const k = state.zoomTarget < 1 ? 0.001 : 1;
+        c.scale.setScalar(damp(c.scale.x, k, 6, dt));
+      }
       // pulso de los anillos
       for (const id of ORDER) {
         const pin = pins[id];
@@ -309,7 +316,8 @@ export function createMap3D() {
         const portrait = innerHeight > innerWidth;
         camTarget.set(f.x, 0, f.z + (portrait ? 1.5 : 0.5));
         state.camLook.lerp(camTarget, 1 - Math.exp(-dt * 2.2));
-        const dist = portrait ? 20 : 14;
+        state.zoom = damp(state.zoom, state.zoomTarget, 3.5, dt);
+        const dist = (portrait ? 20 : 14) * state.zoom;
         state.camPos.set(state.camLook.x - 2, dist * 0.95, state.camLook.z + dist * 0.75);
         camera.position.lerp(state.camPos, 1 - Math.exp(-dt * 2.2));
         camera.lookAt(state.camLook);

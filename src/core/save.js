@@ -19,6 +19,7 @@ function fresh() {
     daily: {}, // 'AAAA-MM-DD:stage' → mejor puntuación
     settings: { music: 0.7, sfx: 0.9, quality: 'auto', battery: false, vibration: true, rain: true },
     seenDialogs: {},
+    photos: [], // miniaturas del modo foto (máx. 12)
     created: Date.now(),
   };
 }

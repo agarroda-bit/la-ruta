@@ -347,6 +347,8 @@ async function onFinish(def, mod, r, ghostRec, mode, ghostData) {
   if (mode === 'reto' || r.win) {
     bx.append(button('💬 Compartir', () => share(def, r, mode)));
   }
+  const finale = () => import('../screens/final.js').then((m) => { teardown(); m.openFinale(STAGES, { onClose: () => game.onExit && game.onExit() }); });
+  if (id === 'shanghai' && r.win) bx.append(button('🎬 Créditos finales', finale, 'grande'));
   // animación: estrellas una a una y puntos que suben
   const starEls = el.querySelectorAll('.estrella');
   countUp(el.querySelector('.res-num'), r.score || 0, 1000);
@@ -357,6 +359,8 @@ async function onFinish(def, mod, r, ghostRec, mode, ghostData) {
     vibrate(20);
   }
   if (firstClear && game.onFirstClear) game.onFirstClear(id);
+  // la primera vez que se acaba el viaje, los créditos salen solos
+  if (firstClear && id === 'shanghai') { await wait(3500); if (document.body.contains(el)) finale(); }
 }
 
 export function share(def, r, mode) {

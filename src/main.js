@@ -198,6 +198,11 @@ async function showMap(focusId) {
 function closeMap() { if (mapUI) { mapUI._cleanup(); mapUI.remove(); mapUI = null; } }
 
 async function startStage(id, mode = 'normal') {
+  if (map.focusStage) map.focusStage(id);
+  map.zoomIn();
+  if (mapUI) mapUI.classList.add('saliendo');
+  audio.sfx('whoosh');
+  await new Promise((r) => setTimeout(r, 550));
   closeMap();
   await playStage(id, { mode });
 }

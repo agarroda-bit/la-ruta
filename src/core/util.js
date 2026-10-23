@@ -1,5 +1,6 @@
 // Utilidades pequeñas compartidas por todo el juego.
 import * as THREE from 'three';
+import { save } from './save.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -125,5 +126,5 @@ export function disposeTree(obj) {
 }
 function isCached(m) { for (const v of matCache.values()) if (v === m) return true; return false; }
 
-export const vibrate = (ms) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* sin vibración */ } };
+export const vibrate = (ms) => { try { if (save.data.settings.vibration !== false && navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* sin vibración */ } };
 export const wait = (ms) => new Promise((r) => setTimeout(r, ms));

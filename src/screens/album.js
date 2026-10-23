@@ -12,6 +12,8 @@ export function openAlbum({ onClose } = {}) {
     <div class="panel album-panel no-ctrl">
       <h2>Pegatinas <small>${n}/${PEGATINAS.length}</small></h2>
       <div class="album-grid"></div>
+      <h3>Fotos del viaje</h3>
+      <div class="album-fotos">${(save.data.photos || []).map((f) => `<img alt="Foto" src="${f.img}">`).join('') || '<div class="album-vacio">Aún no hay fotos: en cualquier etapa, pausa → 📷 Modo foto.</div>'}</div>
       <h3>El viaje en números</h3>
       <div class="album-stats">
         <div><b>${st.cocos | 0}</b><span>cocos</span></div>
