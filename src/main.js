@@ -15,6 +15,8 @@ import { openEditor } from './screens/personajes.js';
 import { openAlbum } from './screens/album.js';
 import { openCredits } from './screens/creditos.js';
 import { todayKey, ddmm } from './core/util.js';
+import { dialog } from './core/ui.js';
+import { VIAJE } from './screens/viaje.js';
 
 const VERSION = import.meta.env.VITE_VERSION || 'dev';
 const params = new URLSearchParams(location.search);
@@ -193,6 +195,13 @@ async function showMap(focusId) {
   };
   engine.onFrame.add(follow);
   ui._cleanup = () => { engine.onFrame.delete(follow); offKeys(); clearInterval(padT); };
+  // diálogo de viaje la primera vez que se llega al mapa o a una etapa nueva
+  const seen = (save.data.seenDialogs.viaje ||= {});
+  const key = !seen.inicio ? 'inicio' : (isUnlocked(sel) && VIAJE[sel] && !seen[sel] && sel !== 'phuket' ? sel : null);
+  if (key) {
+    seen[key] = true; save.touch();
+    setTimeout(() => { if (mapUI === ui) dialog(VIAJE[key]); }, 900);
+  }
 }
 
 function closeMap() { if (mapUI) { mapUI._cleanup(); mapUI.remove(); mapUI = null; } }

@@ -274,3 +274,13 @@ body.modo-foto .hud, body.modo-foto .btn-pausa, body.modo-foto .controles, body.
 .mapa-ui { transition: opacity .35s; }
 .mapa-ui.saliendo { opacity: 0; }
 .mapa-ui.saliendo * { pointer-events: none !important; }
+.mapa-logo, .mapa-estrellas { white-space: nowrap; }
+@media (max-width: 480px) {
+  .mapa-logo { font-size: 17px; }
+  .mapa-estrellas { font-size: 13px; padding: 3px 8px; }
+  .mapa-top { gap: 6px; }
+  .mapa-acciones { gap: 5px; }
+  .boton.icono { width: 40px; height: 40px; font-size: 18px; border-radius: 12px; min-height: 40px; }
+  .carta { flex-basis: 240px; }
+  .mapa-cartas { padding: 12px calc(50% - 120px); }
+}
