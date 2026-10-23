@@ -1,4 +1,4 @@
-import{af as s,W as m,a6 as i,ac as f,ai as $,aj as u,ak as c,al as h,ad as g}from"./index-B5LHOG6P.js";function T(e,{onClose:o}={}){const[d,l]=s.data.names,a=s.data.stats,r=Object.keys(s.data.stickers).length,v=e.map(n=>{const t=s.data.stages[n.id]||{},b=isFinite(t.bestTime)?m(t.bestTime):"—";return`<div class="fin-etapa"><span>${n.num}. ${i(n.name)}</span><span class="fin-est">${"★".repeat(t.stars||0)}${"☆".repeat(3-(t.stars||0))}</span><span>${b}</span></div>`}).join("");f.music("final");const p=$("final",`
+import{as as s,W as m,a6 as i,ap as f,av as $,aw as u,ax as c,ay as h,aq as g}from"./index-DT64Jraz.js";function T(e,{onClose:o}={}){const[d,l]=s.data.names,a=s.data.stats,r=Object.keys(s.data.stickers).length,v=e.map(n=>{const t=s.data.stages[n.id]||{},b=isFinite(t.bestTime)?m(t.bestTime):"—";return`<div class="fin-etapa"><span>${n.num}. ${i(n.name)}</span><span class="fin-est">${"★".repeat(t.stars||0)}${"☆".repeat(3-(t.stars||0))}</span><span>${b}</span></div>`}).join("");f.music("final");const p=$("final",`
     <div class="fin-rollo">
       <div class="fin-titulo">LA RUTA</div>
       <div class="fin-lema">Phuket → Shanghái</div>
