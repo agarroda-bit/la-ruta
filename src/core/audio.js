@@ -6,7 +6,7 @@
 //   audio.loop(nombre) → { set({ rate, vol }), stop() }   motores, lluvia, olas, público
 //   audio.setVolumes(music, sfx)
 import { PISTAS } from '../audio/pistas.js';
-import { EFECTOS, LOOPS } from '../audio/efectos.js';
+import { EFECTOS, LOOPS, precalentarEfectos } from '../audio/efectos.js';
 import { Secuenciador } from '../audio/secuenciador.js';
 
 class Audio {
@@ -20,6 +20,8 @@ class Audio {
 
   unlock() {
     try {
+      // iPhone: que suene aunque el interruptor de silencio esté puesto (Safari 16.4+)
+      try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch (e) { /* nada */ }
       if (!this.ctx) {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return;
@@ -27,11 +29,13 @@ class Audio {
         this.master = this.ctx.createGain(); this.master.gain.value = 1;
         // compresor suave para que nada sature en el altavoz del móvil
         this.comp = this.ctx.createDynamicsCompressor();
-        this.comp.threshold.value = -14; this.comp.ratio.value = 4; this.comp.attack.value = 0.005; this.comp.release.value = 0.2;
+        // casi limitador: solo actúa en picos (música + muchos efectos a la vez)
+        this.comp.threshold.value = -8; this.comp.knee.value = 6; this.comp.ratio.value = 12; this.comp.attack.value = 0.003; this.comp.release.value = 0.25;
         this.master.connect(this.comp).connect(this.ctx.destination);
         this.musicBus = this.ctx.createGain(); this.musicBus.gain.value = this.vol.music * 0.55; this.musicBus.connect(this.master);
         this.sfxBus = this.ctx.createGain(); this.sfxBus.gain.value = this.vol.sfx; this.sfxBus.connect(this.master);
         this._noise = makeNoise(this.ctx);
+        try { precalentarEfectos(this.ctx); } catch (e) { /* */ }
         if (this._pendingMusic) { const id = this._pendingMusic; this._pendingMusic = null; this.music(id); }
       }
       if (this.ctx.state === 'suspended') this.ctx.resume();
@@ -71,8 +75,18 @@ class Audio {
     if (!this.ctx || this.ctx.state !== 'running') return;
     const f = EFECTOS[name];
     if (!f) return;
+    // anti-ametralladora: el mismo efecto como mucho cada 30 ms, y no más de 24 efectos sonando
+    const now = performance.now();
+    this._ult = this._ult || {};
+    if (now - (this._ult[name] || 0) < 30) return;
+    this._vivos = (this._vivos || []).filter((t) => t > now);
+    if (this._vivos.length >= 24) return;
+    this._ult[name] = now; this._vivos.push(now + 900);
     try { f(this.ctx, this.sfxBus, { vol: 1, pitch: 1, ...opts }, this._noise); } catch (e) { /* nada */ }
   }
+
+  // Pulso de la música actual (para minijuegos de ritmo): { bpm, beat (pulsos desde que empezó), t0, now }
+  beatInfo() { return this.current && this.current.info ? this.current.info() : null; }
 
   loop(name) {
     const dummy = { set() {}, stop() {} };
@@ -103,4 +117,13 @@ function makeNoise(ctx) {
 }
 
 export const audio = new Audio();
+// Ayudas de prueba (no las usa el juego): (await __audioDemo.analisis()).analizar() mide niveles offline
+if (typeof window !== 'undefined') {
+  window.__audioDemo = {
+    audio,
+    pistas: () => Object.keys(PISTAS), efectos: () => Object.keys(EFECTOS), bucles: () => Object.keys(LOOPS),
+    stats: () => (audio.current ? audio.current.stats : null),
+    analisis: () => import('../audio/analisis.js'),
+  };
+}
 document.addEventListener('visibilitychange', () => { if (document.hidden) audio.suspend(); else audio.resume(); });
