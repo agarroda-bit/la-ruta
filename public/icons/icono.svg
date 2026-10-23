@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="cielo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff7e5f"/><stop offset=".55" stop-color="#ffb26b"/><stop offset="1" stop-color="#ffd29d"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="0" fill="url(#cielo)"/>
+  <circle cx="256" cy="250" r="120" fill="#fff1c9"/>
+  <path d="M0 330 Q64 300 128 330 T256 330 T384 330 T512 330 V512 H0Z" fill="#2ec4b6"/>
+  <path d="M0 372 Q64 342 128 372 T256 372 T384 372 T512 372 V512 H0Z" fill="#1a9e94"/>
+  <!-- tuk-tuk -->
+  <g transform="translate(120 190)">
+    <path d="M40 40 Q40 10 80 10 H220 Q260 10 262 50 L262 130 H30 Z" fill="#1a1036"/>
+    <path d="M52 44 Q54 24 82 24 H214 Q246 24 248 52 V70 H52 Z" fill="#ff4fa3"/>
+    <rect x="30" y="70" width="232" height="70" rx="14" fill="#ffb703" stroke="#1a1036" stroke-width="10"/>
+    <rect x="70" y="84" width="70" height="36" rx="8" fill="#7fe0d8" stroke="#1a1036" stroke-width="8"/>
+    <path d="M262 80 L300 104 V140 H262Z" fill="#ff6f61" stroke="#1a1036" stroke-width="10" stroke-linejoin="round"/>
+    <circle cx="80" cy="148" r="26" fill="#1a1036"/><circle cx="80" cy="148" r="10" fill="#fff8ec"/>
+    <circle cx="240" cy="148" r="26" fill="#1a1036"/><circle cx="240" cy="148" r="10" fill="#fff8ec"/>
+  </g>
+</svg>
