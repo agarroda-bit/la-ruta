@@ -24,7 +24,7 @@ const touch = !!args.touch;
 
 const server = args.dist
   ? await preview({ preview: { port, strictPort: false }, logLevel: 'error' })
-  : await createServer({ server: { port, strictPort: false }, cacheDir: `node_modules/.vite-captura-${port}`, logLevel: 'error', clearScreen: false });
+  : await createServer({ cacheDir: `node_modules/.vite-captura-${port}`, server: { port, strictPort: false, hmr: false, watch: null }, logLevel: 'error', clearScreen: false });
 if (!args.dist) await server.listen();
 const realPort = args.dist ? server.httpServer.address().port : server.config.server.port;
 const url = `http://localhost:${realPort}/${page}`;
