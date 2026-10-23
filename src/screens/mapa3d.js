@@ -289,7 +289,7 @@ export function createMap3D() {
         // cinemática: la ruta se dibuja y el avión la recorre en bucle
         state.portadaT += dt;
         const u = ((state.portadaT * 0.09) % 1.25);
-        state.planeU = Math.min(1, u);
+        state.planeU = clamp(u, 0, 1);
         setDraw(state.planeU + 0.002);
         const p = curve.getPointAt(state.planeU);
         camTarget.set(p.x * 0.4, 0, p.z * 0.5 + 2);

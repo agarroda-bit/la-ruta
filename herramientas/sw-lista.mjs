@@ -27,10 +27,10 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== location.origin) return;
   // páginas: el index guardado (con o sin ?etapa=...)
   if (req.mode === 'navigate') {
-    e.respondWith(caches.match('./index.html', { cacheName: CACHE }).then((r) => r || caches.match('./')).then((r) => r || fetch(req)));
+    e.respondWith(caches.match('./index.html', { cacheName: CACHE, ignoreVary: true }).then((r) => r || caches.match('./', { ignoreVary: true })).then((r) => r || fetch(req)));
     return;
   }
-  e.respondWith(caches.match(req, { ignoreSearch: true }).then((r) => r || fetch(req).then((res) => {
+  e.respondWith(caches.match(req, { ignoreSearch: true, ignoreVary: true }).then((r) => r || fetch(req).then((res) => {
     if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
     return res;
   })));

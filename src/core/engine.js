@@ -91,7 +91,7 @@ class Engine {
     // modo ahorro: 30 fps
     if (this.battery && realDt < 1 / 31) return;
     this._last = now;
-    realDt = Math.min(realDt, 0.1);
+    realDt = Math.max(0, Math.min(realDt, 0.1));
     this._measure(realDt);
     input.update();
     if (this._slowT > 0) { this._slowT -= realDt; this.timeScale = this._slowScale; } else this.timeScale = 1;
