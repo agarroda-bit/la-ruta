@@ -276,9 +276,9 @@ async function onFinish(def, mod, r, ghostRec, mode, ghostData) {
   const id = def.id;
   const st = save.stage(id);
   const stars = Math.max(0, Math.min(3, r.stars | 0));
-  const newBest = (r.score || 0) > (st.best || 0);
+  const newBest = !r.noRecord && (r.score || 0) > (st.best || 0);
   const newTime = r.win && r.time && r.time < (st.bestTime || Infinity);
-  const firstClear = r.win && !(st.stars > 0);
+  const firstClear = r.win && stars > 0 && !(st.stars > 0);
   if (mode !== 'compi') {
     st.stars = Math.max(st.stars || 0, stars);
     if (newBest) st.best = r.score;
