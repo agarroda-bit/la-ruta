@@ -1,4 +1,4 @@
-import{as as s,W as m,a6 as i,ap as f,av as $,aw as u,ax as c,ay as h,aq as g}from"./index-DT64Jraz.js";function T(e,{onClose:o}={}){const[d,l]=s.data.names,a=s.data.stats,r=Object.keys(s.data.stickers).length,v=e.map(n=>{const t=s.data.stages[n.id]||{},b=isFinite(t.bestTime)?m(t.bestTime):"—";return`<div class="fin-etapa"><span>${n.num}. ${i(n.name)}</span><span class="fin-est">${"★".repeat(t.stars||0)}${"☆".repeat(3-(t.stars||0))}</span><span>${b}</span></div>`}).join("");f.music("final");const p=$("final",`
+import{av as s,N as m,a5 as i,as as f,ay as $,az as u,aA as c,aB as h,at as g}from"./index-DCVSq5Xj.js";function A(e,{onClose:o}={}){const[d,l]=s.data.names,a=s.data.stats,r=Object.keys(s.data.stickers).length,v=e.map(n=>{const t=s.data.stages[n.id]||{},b=isFinite(t.bestTime)?m(t.bestTime):"—";return`<div class="fin-etapa"><span>${n.num}. ${i(n.name)}</span><span class="fin-est">${"★".repeat(t.stars||0)}${"☆".repeat(3-(t.stars||0))}</span><span>${b}</span></div>`}).join("");f.music("final");const p=$("final",`
     <div class="fin-rollo">
       <div class="fin-titulo">LA RUTA</div>
       <div class="fin-lema">Phuket → Shanghái</div>
@@ -25,4 +25,4 @@ import{as as s,W as m,a6 as i,ap as f,av as $,aw as u,ax as c,ay as h,aq as g}fr
       <p>Al wifi del avión, por no existir.</p>
       <div class="fin-fin">Fin del viaje.<br><small>De momento.</small></div>
     </div>
-    <div class="fin-botones no-ctrl"></div>`);c(200),setTimeout(()=>c(160),2500),h(".fin-botones",p).append(g("Volver al mapa",async()=>{await p.close(),o&&o()},"grande"))}export{T as openFinale};
+    <div class="fin-botones no-ctrl"></div>`);c(200),setTimeout(()=>c(160),2500),h(".fin-botones",p).append(g("Volver al mapa",async()=>{await p.close(),o&&o()},"grande"))}export{A as openFinale};
