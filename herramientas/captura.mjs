@@ -50,16 +50,15 @@ async function touchHold(list) {
   while (pts.some((f) => !f.up)) {
     await p.waitForTimeout(33);
     const el = Date.now() - t0;
-    let ended = false;
     for (const f of pts) {
       if (f.up) continue;
       const k = Math.min(1, el / Math.max(1, f.ms ?? 500));
       f.cx = f.x + (f.dx || 0) * Math.min(1, k * 4); f.cy = f.y + (f.dy || 0) * Math.min(1, k * 4);
-      if (el >= (f.ms ?? 500)) { f.up = true; ended = true; }
+      // en Chromium, para soltar un dedo hay que mandar touchEnd solo con ese punto
+      if (el >= (f.ms ?? 500)) { f.up = true; await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [{ x: f.cx, y: f.cy, id: f.id }] }); }
     }
     const rest = tp();
-    if (ended) await cdp.send('Input.dispatchTouchEvent', { type: rest.length ? 'touchMove' : 'touchEnd', touchPoints: rest });
-    else await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: rest });
+    if (rest.length) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: rest });
   }
 }
 
