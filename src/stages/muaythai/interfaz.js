@@ -1,6 +1,6 @@
 // Interfaz de la etapa: estilos propios, disposición de botones (1 y 2 jugadores,
 // vertical y apaisado), marcador del combate, menú de inicio y textos flotantes.
-import { esc } from '../../core/ui.js';
+import { esc, uiRoot } from '../../core/ui.js';
 
 const CSS = `
 .mt-capa { position: fixed; inset: 0; pointer-events: none; z-index: 2; font-family: var(--titulo); }
@@ -38,9 +38,11 @@ const CSS = `
 .mt-reloj.poco { color: #ff6f61; animation: mtlatido .5s infinite; }
 .mt-contra { position: absolute; left: 50%; top: calc(64px + var(--safe-t)); transform: translateX(-50%); font-size: 12px; color: #1a1036; background: #ffcf3f; border: 3px solid #1a1036; border-radius: 99px; padding: 2px 10px; opacity: 0; transition: opacity .15s; white-space: nowrap; }
 .mt-contra.on { opacity: 1; animation: mtlatido .3s infinite; }
-.mt-pop { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font-size: 30px; color: #ffcf3f; -webkit-text-stroke: 2px #1a1036; text-shadow: 0 4px 0 #1a1036; animation: mtpop .9s ease-out forwards; pointer-events: none; }
-.mt-pop.peque { font-size: 19px; }
-.mt-pop.grande { font-size: 54px; -webkit-text-stroke: 3px #1a1036; }
+.mt-pop { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font-size: clamp(28px, 3vw + 16px, 64px); color: #ffcf3f; -webkit-text-stroke: 3px #1a1036; paint-order: stroke fill; text-shadow: 0 4px 0 #1a1036, 0 0 16px rgba(20,6,2,.75); animation: mtpop 1s ease-out forwards; pointer-events: none; }
+.mt-pop.peque { font-size: clamp(22px, 1.6vw + 16px, 40px); }
+.mt-pop.grande { font-size: clamp(46px, 5vw + 26px, 104px); -webkit-text-stroke: 4px #1a1036; }
+.mt-pop.mt-aviso { font-size: clamp(20px, 1.4vw + 14px, 34px); color: #ffcf3f; background: #1a1036; border: 3px solid #ffcf3f; border-radius: 14px; padding: 4px 14px; -webkit-text-stroke: 0; text-shadow: none; box-shadow: 0 4px 0 rgba(0,0,0,.5); animation: mtaviso 1.6s ease-out forwards; }
+@keyframes mtaviso { 0% { transform: translate(-50%,-50%) scale(.5); opacity: 0; } 12% { transform: translate(-50%,-50%) scale(1.12); opacity: 1; } 22% { transform: translate(-50%,-50%) scale(1); } 85% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1); } }
 .mt-pop.rot { animation-name: mtpoprot; }
 @keyframes mtpop { 0% { transform: translate(-50%,-50%) scale(.3); opacity: 0; } 18% { transform: translate(-50%,-50%) scale(1.2); opacity: 1; } 30% { transform: translate(-50%,-50%) scale(1); } 75% { opacity: 1; } 100% { transform: translate(-50%,-110%) scale(1); opacity: 0; } }
 @keyframes mtpoprot { 0% { transform: translate(-50%,-50%) rotate(180deg) scale(.3); opacity: 0; } 18% { transform: translate(-50%,-50%) rotate(180deg) scale(1.2); opacity: 1; } 30% { transform: translate(-50%,-50%) rotate(180deg) scale(1); } 75% { opacity: 1; } 100% { transform: translate(-50%,10%) rotate(180deg) scale(1); opacity: 0; } }
@@ -48,7 +50,7 @@ const CSS = `
 .mt-contra.on { animation: none; }
 .mt-flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 4; transition: opacity .25s; }
 .mt-vineta { position: fixed; inset: 0; pointer-events: none; z-index: 1; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(40,8,0,.55) 100%); }
-.mt-lienzo { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+.mt-lienzo { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none !important; z-index: 4; }
 .mt-menu { position: fixed; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; padding: 16px; background: radial-gradient(ellipse at 50% 30%, rgba(255,190,80,.15), rgba(20,6,2,.7)); pointer-events: auto; }
 .mt-menu .panel { text-align: center; border-top: 12px solid #c1121f; max-width: 440px; }
 .mt-menu h2 { margin-bottom: 2px; }
@@ -60,7 +62,7 @@ const CSS = `
 .mt-menu .boton.dos { background: #1d4ed8; color: #fff; }
 .mt-menu .boton.uno { background: #c1121f; color: #fff; }
 .mt-menu .mt-teclas { font-family: var(--texto); font-size: 12px; font-weight: 700; opacity: .6; margin-top: 10px; }
-.mt-ayuda { position: absolute; left: 50%; transform: translateX(-50%); background: rgba(26,16,54,.82); color: #fff; border: 2px solid #ffcf3f; border-radius: 14px; padding: 6px 12px; font-family: var(--texto); font-weight: 800; font-size: 15px; text-align: center; max-width: 92%; white-space: normal; line-height: 1.15; opacity: 0; transition: opacity .3s; }
+.mt-ayuda { position: absolute; left: 50%; transform: translateX(-50%); background: #1a1036; color: #fff; border: 3px solid #ffcf3f; border-radius: 14px; padding: 8px 14px; box-shadow: 0 5px 0 rgba(0,0,0,.45); font-family: var(--texto); font-weight: 800; font-size: clamp(16px, .8vw + 12px, 24px); text-align: center; max-width: 92%; white-space: normal; line-height: 1.15; opacity: 0; transition: opacity .3s; }
 .mt-ayuda.on { opacity: 1; }
 .mt-ayuda b { color: #ffcf3f; }
 .controles.mt-ctrl .btn-tactil { margin: 0; font-size: 13px; border-width: 4px; }
@@ -93,7 +95,7 @@ export const KEY_HINT = { 0: { punch: 'A', kick: 'S', knee: 'D', block: 'W', dod
 function btn(id, player, cx, cy, size, rot = false) {
   const pos = { left: Math.round(cx - size / 2), top: Math.round(cy - size / 2), width: Math.round(size), height: Math.round(size), bottom: 'auto', right: 'auto' };
   if (rot) pos.rotate = '180deg';
-  return { id, label: LBL[id], keys: KEYS[id][0], keys2: KEYS[id][1], pad: PAD[id], color: player === 1 ? (id === 'punch' ? '#3a86ff' : COL[id]) : COL[id], player, pos, _cx: cx, _cy: cy, _size: size };
+  return { id, label: LBL[id], keys: KEYS[id][0], keys2: KEYS[id][1], pad: PAD[id], color: COL[id], player, pos, _cx: cx, _cy: cy, _size: size };
 }
 
 // Devuelve { controls (para input.configure), regions, lanes, portrait }
@@ -108,7 +110,7 @@ export function computeLayout({ players, phase, W, H }) {
     regions = [{ x: 0, y: 0, w: W, h: H, rot: false, pl: 0 }];
     if (phase === 'waikru') {
       const sp = Math.min(W * 0.29, 130), cy = H - sb - B * 0.6;
-      for (let i = 0; i < 3; i++) { const cx = W / 2 + (i - 1) * sp; buttons.push(btn('l' + i, 0, cx, cy, B * 1.1)); lanes[0].push({ x: cx, y: cy - B * 1.02, dir: 1, rot: false, top: H * (portrait ? 0.3 : 0.2) }); }
+      for (let i = 0; i < 3; i++) { const cx = W / 2 + (i - 1) * sp; buttons.push(btn('l' + i, 0, cx, cy, B * 1.1)); lanes[0].push({ x: cx, y: cy, r: B * 0.55, dir: 1, rot: false, top: H * (portrait ? 0.3 : 0.2) }); }
     } else {
       const big = B * 1.22;
       const by = H - sb - big / 2;
@@ -128,14 +130,15 @@ export function computeLayout({ players, phase, W, H }) {
       for (let p = 0; p < 2; p++) for (let i = 0; i < 3; i++) {
         const cx = half * p + half / 2 + (i - 1) * sp;
         buttons.push(btn('l' + i, p, cx, cy, B));
-        lanes[p].push({ x: cx, y: cy - B * 1.05, dir: 1, rot: false, top: 70 });
+        lanes[p].push({ x: cx, y: cy, r: B / 2, dir: 1, rot: false, top: 70 });
       }
     } else {
       const g = 12, y1 = H - sb - B / 2, y2 = y1 - B - g;
       const m = 18 + B / 2;
       // jugador 1 (pulgar izquierdo): bloqueo fuera, puño dentro
-      buttons.push(btn('block', 0, m, y1, B), btn('punch', 0, m + B + g, y1, B), btn('knee', 0, m, y2, B), btn('kick', 0, m + B + g, y2, B));
-      buttons.push(btn('block', 1, W - m, y1, B), btn('punch', 1, W - m - B - g, y1, B), btn('knee', 1, W - m, y2, B), btn('kick', 1, W - m - B - g, y2, B));
+      const yd = y2 - B / 2 - g - B * 0.38;
+      buttons.push(btn('block', 0, m, y1, B), btn('punch', 0, m + B + g, y1, B), btn('knee', 0, m, y2, B), btn('kick', 0, m + B + g, y2, B), btn('dodge', 0, m + (B + g) / 2, yd, B * 0.76));
+      buttons.push(btn('block', 1, W - m, y1, B), btn('punch', 1, W - m - B - g, y1, B), btn('knee', 1, W - m, y2, B), btn('kick', 1, W - m - B - g, y2, B), btn('dodge', 1, W - m - (B + g) / 2, yd, B * 0.76));
     }
   } else {
     // vertical: abajo = jugador 1, arriba = jugador 2 (girado 180°)
@@ -146,18 +149,18 @@ export function computeLayout({ players, phase, W, H }) {
       for (let i = 0; i < 3; i++) {
         const cx = W / 2 + (i - 1) * sp;
         buttons.push(btn('l' + i, 0, cx, yb, B));
-        lanes[0].push({ x: cx, y: yb - B * 1.05, dir: 1, rot: false, top: H / 2 + 60 });
+        lanes[0].push({ x: cx, y: yb, r: B / 2, dir: 1, rot: false, top: H / 2 + 60 });
         const cx2 = W - cx;
         buttons.push(btn('l' + i, 1, cx2, yt, B, true));
-        lanes[1].push({ x: cx2, y: yt + B * 1.05, dir: -1, rot: true, top: H / 2 - 60 });
+        lanes[1].push({ x: cx2, y: yt, r: B / 2, dir: -1, rot: true, top: H / 2 - 60 });
       }
     } else {
-      const order = ['punch', 'kick', 'knee', 'block'];
-      const sp = W / 4;
+      const order = ['punch', 'kick', 'knee', 'dodge', 'block'];
+      const sp = W / 5;
       order.forEach((id, i) => {
         const cx = sp * (i + 0.5);
-        buttons.push(btn(id, 0, W - cx, yb, Math.min(B, sp - 12)));
-        buttons.push(btn(id, 1, cx, yt, Math.min(B, sp - 12), true));
+        buttons.push(btn(id, 0, W - cx, yb, Math.min(B, sp - 8)));
+        buttons.push(btn(id, 1, cx, yt, Math.min(B, sp - 8), true));
       });
     }
   }
@@ -174,7 +177,8 @@ export function crearCapa(hudEl) {
   const lienzo = document.createElement('canvas'); lienzo.className = 'mt-lienzo';
   const flashEl = document.createElement('div'); flashEl.className = 'mt-flash';
   const vin = document.createElement('div'); vin.className = 'mt-vineta';
-  (hudEl || document.body).append(vin, lienzo, capa, flashEl);
+  (hudEl || document.body).append(vin, capa, flashEl);
+  (uiRoot() || document.body).appendChild(lienzo); // por encima de los botones: las notas caen sobre ellos
   const api = {
     capa, lienzo, regions: [], hud: [],
     flash(v = 0.8, color = '#ffffff') {
@@ -246,7 +250,7 @@ export function crearCapa(hudEl) {
       }
     },
     // texto flotante: en la región del jugador p (o en todas si p es null)
-    pop(text, { p = null, color = '', size = '', y = 0.36, x = 0.5 } = {}) {
+    pop(text, { p = null, color = '', size = '', y = 0.36, x = 0.5, ms = 0 } = {}) {
       for (const r of api.regions) {
         if (p !== null && r.pl >= 0 && r.pl !== p) continue;
         let xx = x;
@@ -256,8 +260,9 @@ export function crearCapa(hudEl) {
         e.innerHTML = text;
         if (color) e.style.color = color;
         e.style.left = (xx * 100) + '%'; e.style.top = (y * 100) + '%';
+        if (ms) e.style.animationDuration = ms + 'ms';
         r.el.appendChild(e);
-        setTimeout(() => e.remove(), 950);
+        setTimeout(() => e.remove(), (ms || (size === 'mt-aviso' ? 1600 : 1000)) + 50);
       }
     },
     ayuda(html, ms = 2600, { p = null, y = 0.62 } = {}) {

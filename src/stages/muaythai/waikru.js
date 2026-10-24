@@ -144,21 +144,24 @@ export class WaiKru {
       for (let l = 0; l < 3; l++) {
         const ln = L[l];
         const dist = Math.abs(ln.y - ln.top);
-        const R = Math.min(34, Math.max(24, dist * 0.08));
-        // carril
-        const x0 = ln.x - R * 0.95, y0 = Math.min(ln.top, ln.y), hh = dist;
-        const gr = g.createLinearGradient(0, ln.top, 0, ln.y);
-        gr.addColorStop(0, 'rgba(26,16,54,0)'); gr.addColorStop(1, 'rgba(26,16,54,0.55)');
-        g.fillStyle = gr; g.fillRect(x0, y0, R * 1.9, hh);
-        g.fillStyle = 'rgba(255,207,63,0.25)'; g.fillRect(x0, y0, 2, hh); g.fillRect(x0 + R * 1.9 - 2, y0, 2, hh);
-        // diana
+        const R = ln.r || 30;
+        // carril que acaba en el botón
+        const yEnd = ln.y - ln.dir * (R + 8);
+        const x0 = ln.x - R * 0.8, y0 = Math.min(ln.top, yEnd), hh = Math.abs(yEnd - ln.top);
+        const gr = g.createLinearGradient(0, ln.top, 0, yEnd);
+        gr.addColorStop(0, 'rgba(26,16,54,0)'); gr.addColorStop(1, 'rgba(26,16,54,0.5)');
+        g.fillStyle = gr; g.fillRect(x0, y0, R * 1.6, hh);
+        g.fillStyle = 'rgba(255,207,63,0.3)'; g.fillRect(x0, y0, 2, hh); g.fillRect(x0 + R * 1.6 - 2, y0, 2, hh);
+        // diana = anillo dorado alrededor del botón
         const f = s.flashes[l];
-        g.lineWidth = 5; g.strokeStyle = `rgba(255,207,63,${0.75 + f * 0.25})`;
-        g.fillStyle = `rgba(26,16,54,${0.5 - f * 0.2})`;
-        g.beginPath(); g.arc(ln.x, ln.y, R + f * 8, 0, Math.PI * 2); g.fill(); g.stroke();
-        this._glyph(g, l, ln.x, ln.y, R * 0.55, ln.rot, 'rgba(255,207,63,0.55)');
         if (keyboard) {
-          g.save(); g.translate(ln.x, ln.y + (ln.rot ? -1 : 1) * (R + 16)); if (ln.rot) g.rotate(Math.PI);
+          g.fillStyle = 'rgba(26,16,54,0.6)'; g.beginPath(); g.arc(ln.x, ln.y, R, 0, Math.PI * 2); g.fill();
+          this._glyph(g, l, ln.x, ln.y, R * 0.5, ln.rot, 'rgba(255,207,63,0.7)');
+        }
+        g.lineWidth = 5 + f * 3; g.strokeStyle = `rgba(255,207,63,${0.8 + f * 0.2})`;
+        g.beginPath(); g.arc(ln.x, ln.y, R + 5 + f * 8, 0, Math.PI * 2); g.stroke();
+        if (keyboard) {
+          g.save(); g.translate(ln.x, ln.y + (ln.rot ? -1 : 1) * (R + 20)); if (ln.rot) g.rotate(Math.PI);
           g.font = '800 19px "Baloo 2", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
           g.fillStyle = '#fff'; g.fillText(hint['l' + l], 0, 0); g.restore();
         }
@@ -169,7 +172,7 @@ export class WaiKru {
         if (dt > LEAD) break;
         const ln = L[n.lane];
         const dist = Math.abs(ln.y - ln.top);
-        const R = Math.min(34, Math.max(24, dist * 0.08));
+        const R = (ln.r || 30) * 0.95;
         if (n.j && n.j !== 'fallo') continue;
         if (n.j === 'fallo' && dt < -0.35) continue;
         const k = dt / LEAD;

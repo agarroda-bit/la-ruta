@@ -89,7 +89,7 @@ export default {
     const st = {
       phase: 'menu', players: 0, round: 0, tRound: ROUND_T, time: 0, hitstop: 0, excite: 0.25,
       ko: null, result: null, camMode: 'menu', split: false, flashT: [0, 0], L: null, layoutPhase: 'none',
-      waiBonus: [0, 0], waiPerfect: [false, false], waiPrec: [0, 0], lastW: innerWidth, lastH: innerHeight,
+      waiBonus: [0, 0], waiMiss: [0, 0], waiHintT: [-9, -9], waiPerfect: [false, false], waiPrec: [0, 0], lastW: innerWidth, lastH: innerHeight,
     };
     let wk = null, fight = null, ai = null;
     const timers = [];
@@ -130,7 +130,8 @@ export default {
         capa.setRegions([{ x: 0, y: 0, w: W, h: H, rot: false, pl: 0 }], 1);
         return;
       }
-      const L = computeLayout({ players: st.players, phase, W, H });
+      const L = computeLayout({ players: st.players, phase: phase === 'fin' ? 'fight' : phase, W, H });
+      if (phase === 'fin') L.controls.buttons = [];
       st.L = L;
       st.split = st.players === 2 && L.portrait;
       input.configure(L.controls);
@@ -186,9 +187,9 @@ export default {
       }
       // por encima del hombro: el propio luchador a la izquierda, el rival en el centro
       return {
-        pos: V(f.x - f.dir * (portraitCam ? 1.8 : 1.85), RING_Y + (portraitCam ? 2.2 : 2.05), side * (portraitCam ? 1.05 : 1.15)),
-        look: V(o.x + f.dir * 0.15, RING_Y + (portraitCam ? 0.98 : 1.05), side * -0.12),
-        fov: portraitCam ? 64 : 52,
+        pos: V(f.x - f.dir * (portraitCam ? 2.7 : 2.3), RING_Y + (portraitCam ? 2.75 : 2.3), side * (portraitCam ? 1.45 : 1.35)),
+        look: V(o.x + f.dir * 0.05, RING_Y + (portraitCam ? 0.85 : 0.95), side * -0.2),
+        fov: portraitCam ? 56 : 50,
       };
     }
     function updateCam(rig, i, dt) {
@@ -206,6 +207,11 @@ export default {
 
     // ───── efectos al golpear ─────
     const hitPoint = (att, def, kind) => V(def.x - att.dir * 0.22, RING_Y + (kind === 'kick' ? 1.25 : kind === 'knee' ? 1.05 : 1.55), 0);
+    // grito grande: en pantalla partida sale en cada mitad (girado para el de arriba)
+    function grito(text, { color = '#ffcf3f', ms = 1100, size = '' } = {}) {
+      if (st.split) capa.pop(text, { size: size === 'peque' ? '' : 'grande', color, y: 0.5, ms });
+      else ctx.shout(text, { color, ms, size });
+    }
     const humanIdx = () => (st.players === 2 ? [0, 1] : [0]);
     const isHuman = (f) => st.players === 2 || f.idx === 0;
     function wireFight() {
@@ -238,7 +244,7 @@ export default {
       fight.on('perfect', ({ a, d }) => {
         sonido.perfect();
         engine.slowmo(0.4, 0.35);
-        capa.pop('¡CONTRAATAQUE!', { p: isHuman(d) ? d.idx : null, size: '', color: '#ffcf3f', y: 0.34 });
+        capa.pop('¡CONTRAATAQUE!', { p: isHuman(d) ? d.idx : null, size: '', color: '#ffcf3f', y: 0.28 });
         if (isHuman(d)) capa.flash(0.25, '#ffe9a0');
         fx.emit(16, V(a.x, RING_Y + 1.6, 0), { colors: ['#ffd23f', '#fff3b0'], velSpread: 3, life: 0.6, size: 0.07, gravity: -2 });
         st.excite = Math.min(1, st.excite + 0.3);
@@ -249,15 +255,20 @@ export default {
         engine.shake(1.3);
         capa.flash(0.9, '#ffffff');
         sonido.ko();
-        ctx.shout('¡KO!', { color: '#ffcf3f', ms: 1800 });
+        grito('¡KO!', { color: '#ffcf3f', ms: 1800 });
         st.excite = 1; st.camMode = 'ko';
         ctx.vibrate(120);
       });
       if (ai) {
+        ai.onRead = () => {
+          capa.pop('¡TE HA LEÍDO!', { size: '', color: '#7aa7ff', y: 0.26 });
+          if (ai.reads <= 2) capa.ayuda('Somchai lee los golpes repetidos: <b>¡varía!</b>', 2400, { y: innerHeight > innerWidth ? 0.2 : 0.3 });
+        };
         ai.onTell = (pat, first) => {
           sonido.tell(pat.id === 'elefante' ? 'kick' : 'x');
-          capa.pop(`«${pat.name}»`, { size: 'peque', color: '#ffffff', y: 0.2 });
-          if (first) capa.ayuda(pat.hint, 2800, { y: innerHeight > innerWidth ? 0.6 : 0.84 });
+          const por = innerHeight > innerWidth;
+          capa.pop(pat.name.toUpperCase(), { size: 'mt-aviso', y: por ? 0.15 : 0.22 });
+          if (first) capa.ayuda(pat.hint, 3000, { y: por ? 0.2 : 0.3 });
         };
       }
     }
@@ -268,12 +279,18 @@ export default {
       const f = fighters[i]; if (!f) return;
       if (res === 'fallo') {
         f.anim.kick({ rz: 0.12, nz: 0.35, tx: 0.2 });
+        st.waiMiss[i] = (st.waiMiss[i] || 0) + 1;
+        if (isHuman(f) && st.waiMiss[i] >= 3 && st.time - (st.waiHintT[i] || -9) > 3) {
+          st.waiHintT[i] = st.time; st.waiMiss[i] = 0;
+          capa.ayuda('¡Toca el botón cuando el símbolo llegue a su <b>círculo</b>!', 2900, { p: st.players === 2 ? i : null, y: st.players === 2 ? 0.16 : 0.1 });
+        }
         if (isHuman(f)) capa.pop('¡uy!', { p: i, size: 'peque', color: '#c9b8b8', y: 0.4 });
         return;
       }
+      st.waiMiss[i] = 0;
       f.anim.play([[0.1, WAI_GESTURE[lane], ease.out], [0.36, WAI_GESTURE[lane], ease.lin], [0.56, POSES.ram, ease.inOut]]);
       fx.emit(res === 'perfecto' ? 8 : 4, V(f.x, RING_Y + 1.4, 0), { colors: ['#ffd23f', '#fff3b0', '#ffb703'], velSpread: 1.6, life: 0.7, size: 0.07, gravity: -1.5 });
-      if (isHuman(f)) capa.pop(res === 'perfecto' ? '¡PERFECTO!' : '¡BIEN!', { p: i, size: 'peque', color: res === 'perfecto' ? '#ffcf3f' : '#ffffff', y: 0.4 });
+      if (isHuman(f)) capa.pop(res === 'perfecto' ? '¡PERFECTO!' : '¡BIEN!', { p: i, size: 'peque', color: res === 'perfecto' ? '#ffcf3f' : '#ffffff', y: st.players === 2 ? 0.3 : 0.24 });
       st.excite = Math.min(1, st.excite + 0.03);
     }
 
@@ -286,13 +303,13 @@ export default {
         rng: ctx.rng, players: 2, sonido, capa, onJudge: waiJudge, solo: st.players === 1,
         ai: st.players === 1 ? { p: 1, skill: 0.85, rng: makeRng(ctx.seed ^ 0x5eed) } : null,
       });
-      capa.ayuda(st.players === 1 ? 'Toca cuando el símbolo llegue a su <b>círculo</b>. ¡Al ritmo del ching!' : 'Cada uno en su mitad: toca cuando el símbolo llegue al <b>círculo</b>.', 3800, { y: st.players === 2 ? 0.5 : 0.18 });
-      ctx.shout('WAI KRU', { color: '#ffcf3f', ms: 1400 });
+      capa.ayuda(st.players === 1 ? 'Toca cuando el símbolo llegue a su <b>círculo</b>. ¡Al ritmo del ching!' : 'Cada uno en su mitad: toca cuando el símbolo llegue al <b>círculo</b>.', 3800, { y: st.players === 2 ? 0.16 : 0.1 });
+      grito('WAI KRU', { color: '#ffcf3f', ms: 1400 });
       await until(() => wk.done || disposed);
       if (disposed) return;
       capa.lienzo.getContext('2d').clearRect(0, 0, capa.lienzo.width, capa.lienzo.height);
       st.phase = 'saludo';
-      applyLayout('none');
+      applyLayout('fin');
       for (const i of humanIdx()) {
         st.waiPrec[i] = wk.precision(i);
         st.waiBonus[i] = Math.round(20 * st.waiPrec[i]);
@@ -327,10 +344,10 @@ export default {
         refSt.mode = 'stop';
         applyLayout('fight');
         capa.updateHud(fighters, r, ROUNDS, st.tRound);
-        ctx.shout(r === ROUNDS ? 'ÚLTIMO ASALTO' : `ASALTO ${r}`, { color: '#ffcf3f', ms: 1300 });
+        grito(r === ROUNDS ? 'ÚLTIMO ASALTO' : `ASALTO ${r}`, { color: '#ffcf3f', ms: 1300 });
         sonido.bell(1);
         await sleep(1.3); if (disposed) return;
-        ctx.shout('¡A LUCHAR!', { color: '#ffffff', ms: 900 });
+        grito('¡A LUCHAR!', { color: '#ffffff', ms: 900 });
         refSt.mode = 'idle';
         for (const f of fighters) f.freeze = false;
         st.phase = 'ronda';
@@ -356,7 +373,7 @@ export default {
     async function endPhase() {
       const [f0, f1] = fighters;
       st.phase = 'final';
-      applyLayout('none');
+      applyLayout('fin');
       for (const f of fighters) { f.freeze = true; f.cancelTell(); }
       let winner, loser, draw = false;
       const ko = st.ko;
@@ -366,7 +383,7 @@ export default {
         await sleep(2.4); if (disposed) return;
       } else {
         st.camMode = 'final';
-        ctx.shout('DECISIÓN…', { size: 'peque', color: '#ffffff', ms: 1500 });
+        grito('DECISIÓN…', { size: 'peque', color: '#ffffff', ms: 1500 });
         await sleep(1.6); if (disposed) return;
         const p0 = f0.stats.points, p1 = f1.stats.points;
         if (Math.abs(p0 - p1) < 0.5 && Math.abs(f0.hp - f1.hp) < 1) draw = true;
@@ -377,7 +394,7 @@ export default {
       refSt.mode = draw ? 'stop' : 'raise';
       refSt.winner = winner;
       const wname = winner.idx === 0 ? fname()[0] : fname()[1];
-      ctx.shout(draw ? '¡EMPATE!' : `¡GANA ${wname.toUpperCase()}!`, { color: winner.idx === 0 ? '#ff6f61' : '#7aa7ff', ms: 2200, size: 'peque' });
+      grito(draw ? '¡EMPATE!' : `¡GANA ${wname.toUpperCase()}!`, { color: winner.idx === 0 ? '#ff6f61' : '#7aa7ff', ms: 2200, size: 'peque' });
       winner.celebrate = (t) => ({ ...POSES.cheer, hy: 0.82 + Math.max(0, Math.sin(t * 9)) * 0.08, lsz: 2.6 + Math.sin(t * 9) * 0.2, rsz: -2.6 - Math.sin(t * 9) * 0.2 });
       if (draw) loser.celebrate = winner.celebrate;
       st.excite = 1;
@@ -393,26 +410,37 @@ export default {
       finishGame(winner, ko, draw);
     }
 
+    function somchaiDice(win, wp, s) {
+      if (win && wp >= 0.9) return 'Somchai: «¡Mi abuela dice que tienes muy buen wai!»';
+      if (win && wp >= 0.5) return 'Somchai: «Buen combate. El wai, con un poco más de ritmo, ¡de diez!»';
+      if (win) return 'Somchai: «Ganas tú… pero el wai kru se baila, ¿eh? ¡Mi abuela se ha tapado los ojos!»';
+      if (s.crits === 0) return 'Somchai: «Fíjate cuando brillo y bloquea justo antes. ¡La próxima me ganas!»';
+      return 'Somchai: «¡Casi! Ya me lees los golpes. La revancha, mañana.»';
+    }
     function finishGame(winner, ko, draw) {
       const [f0, f1] = fighters;
       if (st.players === 2) {
         ctx.sticker('duelo');
         const wn = winner.idx === 0 ? names[0] : names[1];
         st.result = { winner: draw ? -1 : winner.idx, ko: !!ko };
+        const p0 = Math.round(f0.stats.points * 10), p1 = Math.round(f1.stats.points * 10);
+        const vs = (x, y) => `${x} – ${y}`;
         ctx.finish({
-          win: true, stars: 0,
-          score: 0, // el duelo no cuenta para el récord de la etapa
-          noRecord: true,
+          win: true, stars: 0, duel: true, noRecord: true,
+          score: Math.max(p0, p1) + (ko ? 1000 : 0),
           title: draw ? '¡Empate!' : `¡Gana ${wn}!`,
           stats: [
-            [`Golpes ${names[0]}`, `${f0.stats.landed}`], [`Golpes ${names[1]}`, `${f1.stats.landed}`],
-            [`Bloqueos ${names[0]}`, `${f0.stats.blocked}`], [`Bloqueos ${names[1]}`, `${f1.stats.blocked}`],
-            [`Wai kru ${names[0]}`, `${Math.round(st.waiPrec[0] * 100)} %`], [`Wai kru ${names[1]}`, `${Math.round(st.waiPrec[1] * 100)} %`],
-            [`Puntos ${names[0]}`, `${Math.round(f0.stats.points * 10)}`], [`Puntos ${names[1]}`, `${Math.round(f1.stats.points * 10)}`],
-            ['Final', ko ? `KO (${ko.round}.º)` : 'A los puntos'],
+            ['Golpes', vs(f0.stats.landed, f1.stats.landed)],
+            ['Bloqueos', vs(f0.stats.blocked, f1.stats.blocked)],
+            ['Wai kru %', vs(Math.round(st.waiPrec[0] * 100), Math.round(st.waiPrec[1] * 100))],
+            ['Puntos', vs(p0, p1)],
           ],
           moreStats: { golpes: f0.stats.landed + f1.stats.landed },
-          lines: ['Duelo en el avión: no cuenta para la ruta, pero sí para presumir.'],
+          lines: [
+            `Rojo: ${names[0]}  ·  Azul: ${names[1]}`,
+            draw ? 'Empate a los puntos: ¡revancha en el siguiente vuelo!' : `${winner.idx === 0 ? 'Esquina roja' : 'Esquina azul'}: ${wn} gana ${ko ? `por KO en el ${ko.round}.º asalto` : 'a los puntos'}.`,
+            'Duelo en el avión: no cuenta para la ruta, pero sí para presumir.',
+          ],
           shareText: draw ? `empate a guantazos con ${names[1]} en Bangkok` : `${wn} ganó el duelo de Muay Thai en Bangkok`,
         });
         return;
@@ -420,7 +448,9 @@ export default {
       const win = winner === f0;
       const holgado = win && (f0.hp / f0.hpMax >= 0.5 || f0.stats.points >= f1.stats.points * 1.6);
       let stars = 0;
-      if (win) stars = ko ? 3 : holgado ? (st.waiPerfect[0] ? 3 : 2) : 1;
+      // 3ª estrella: KO o victoria holgada, y además leer el combate (wai kru ≥70 %, contraataques o bloqueos)
+      const lectura = st.waiPrec[0] >= 0.7 || f0.stats.crits >= 2 || f0.stats.blocked >= 8;
+      if (win) stars = (ko || holgado) ? (lectura ? 3 : 2) : 1;
       if (win && ko && ko.round === 1) ctx.sticker('ko-1');
       const score = Math.round(f0.stats.points * 10 + f0.hp * 5 + (win ? 1000 : 0) + (win && ko ? 1500 : 0) + st.waiPrec[0] * 1000);
       st.result = { win, stars, ko: !!ko, score };
@@ -436,12 +466,20 @@ export default {
           ['Vida', `${Math.round(f0.hp)}`],
         ],
         moreStats: { golpes: f0.stats.landed },
-        lines: [win ? 'Somchai: «¡Mi abuela dice que tienes muy buen wai!»' : 'Somchai: «Fíjate cuando brillo… ¡y la próxima me ganas!»'],
+        lines: [somchaiDice(win, st.waiPrec[0], f0.stats)],
         shareText: win ? (ko ? `KO a Somchai en el asalto ${ko.round} en Bangkok` : `gané a Somchai a los puntos en Bangkok`) : `${score} puntos contra Somchai en Bangkok`,
       });
     }
 
     // ───── bucle ─────
+    // en 1 jugador, tu luchador (de espaldas a cámara) se vuelve semitransparente para no tapar
+    function setGhost(f, v) {
+      if (f._ghost === v) return; f._ghost = v;
+      f.ch.group.traverse((o) => {
+        if (!o.isMesh || o.material.blending === THREE.AdditiveBlending) return;
+        const m = o.material; m.transparent = v < 1; m.opacity = v; m.needsUpdate = true;
+      });
+    }
     const f0x = () => fighters[0].x, f1x = () => fighters[1].x;
     function placeFighter(f) {
       f.ch.group.position.set(f.x, RING_Y, 0);
@@ -517,6 +555,7 @@ export default {
           for (const f of fighters) if (f) idleAnim(f, fdt);
         }
         for (const f of fighters) if (f) placeFighter(f);
+        if (st.players === 1 && fighters[0]) setGhost(fighters[0], st.camMode === 'fight' && innerHeight > innerWidth ? 0.55 : 1);
         // destellos
         for (let i = 0; i < fighters.length; i++) {
           const f = fighters[i]; if (!f) continue;

@@ -149,7 +149,7 @@ async function fight1PTouch(p, F) {
       else await F.down([{ ...B['block:0'], ms: 260 }]);
       blockUntil = now + 300;
     } else if (now > blockUntil && F.count === 0 && !foe.tell && (!foe.action || me.crit > 0) && now - lastAtk > 260) {
-      const id = me.crit > 0 ? 'kick' : (n % 5 === 4 ? 'kick' : n % 7 === 6 ? 'knee' : 'punch');
+      const id = me.crit > 0 ? 'kick' : ['punch', 'kick', 'punch', 'knee'][n % 4]; // variar: Somchai lee los golpes repetidos
       if (me.st > 14 || me.crit > 0) { await F.down([{ ...B[id + ':0'], ms: 60 }]); n++; lastAtk = now; }
     }
     if (shots === 0 && me.stats.thrown > 6) { shots++; await p.screenshot({ path: `${OUT}/muaythai-combate-390.png` }); }
@@ -231,7 +231,7 @@ async function pasadaTeclado() {
       if (foe.action === 'kickBig' || foe.action === 'kneeC') await p.keyboard.press('ShiftLeft');
       else { await p.keyboard.down('Space'); blockUp = now + 260; }
     } else if (!blockUp && !foe.tell && (!foe.action || me.crit > 0) && now - lastAtk > 250 && (me.st > 14 || me.crit > 0)) {
-      const k = me.crit > 0 ? 'KeyK' : (n % 5 === 4 ? 'KeyK' : n % 7 === 6 ? 'KeyL' : 'KeyJ');
+      const k = me.crit > 0 ? 'KeyK' : ['KeyJ', 'KeyK', 'KeyJ', 'KeyL'][n % 4];
       await p.keyboard.press(k); n++; lastAtk = now;
     }
     if (shots === 0 && me.stats.thrown > 8) { shots++; await p.screenshot({ path: `${OUT}/muaythai-combate-1440.png` }); }
@@ -241,7 +241,7 @@ async function pasadaTeclado() {
   await sleep(1800);
   const e = await state(p);
   await p.screenshot({ path: `${OUT}/muaythai-final-1440.png` });
-  log('teclado · resultado', JSON.stringify(e && e.result));
+  log('teclado · resultado', JSON.stringify(e && e.result), JSON.stringify(e && e.fighters.map((f) => f.stats)));
   results.push({ name: 'teclado 1440×900 (1 jugador)', ok: ok && !!(e && e.result) && e1.waiPrec[0] > 0.3, errors: errors.filter(real), extra: e && e.result });
   await ctx.close();
 }
@@ -300,6 +300,29 @@ async function pasadaDuelo() {
   await ctx.close();
 }
 
+// ───────── pasada 4: machacar PUÑO no debe ganar (Somchai lee el spam) ─────────
+async function pasadaSpam() {
+  const { ctx, p, cdp, errors } = await newPage({ width: 390, height: 844, touch: true });
+  const F = fingers(cdp);
+  await p.goto(base + '?etapa=muaythai&mtsalto', { waitUntil: 'load', timeout: 120000 });
+  await p.waitForSelector('.mt-menu', { timeout: 30000 });
+  await sleep(800);
+  await tapSel(p, '.mt-menu .boton.uno');
+  for (let i = 0; i < 300; i++) { const e = await state(p); if (e && e.phase === 'ronda') break; await sleep(30); }
+  const B = await btnCenters(p);
+  const t0 = Date.now();
+  while (Date.now() - t0 < 41000) {
+    const e = await state(p);
+    if (!e || e.phase !== 'ronda') break;
+    await F.down([{ ...B['punch:0'], ms: 60 }]); await sleep(80); await F.tick(); await sleep(220);
+  }
+  const e = await state(p);
+  const [me, foe] = e.fighters;
+  log('spam · tras el asalto 1', JSON.stringify({ fase: e.phase, ronda: e.round, yo: me.hp, somchai: foe.hp, golpes: me.stats.landed, contras: foe.stats.perfect }));
+  results.push({ name: 'machacar puño no gana en el asalto 1', ok: !foe.ko && foe.hp > 40 && foe.stats.perfect >= 2, errors: errors.filter(real) });
+  await ctx.close();
+}
+
 function real(e) { return !/AudioContext|autoplay/i.test(e); }
 
 try {
@@ -307,6 +330,7 @@ try {
   if (!solo || solo === 'tactil') await pasadaTactil();
   if (!solo || solo === 'teclado') await pasadaTeclado();
   if (!solo || solo === 'duelo') await pasadaDuelo();
+  if (!solo || solo === 'spam') await pasadaSpam();
 } catch (e) {
   console.error(e);
   results.push({ name: 'excepción', ok: false, errors: [String(e.stack || e)] });

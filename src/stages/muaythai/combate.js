@@ -3,8 +3,8 @@
 import { POSES, moveKeys, ease } from './luchador.js';
 
 export const MOVES = {
-  jab: { startup: 0.11, active: 0.05, recover: 0.17, dmg: 4, cost: 4, reach: 1.6, lunge: 0.1, kind: 'jab' },
-  cross: { startup: 0.15, active: 0.05, recover: 0.24, dmg: 7, cost: 6, reach: 1.65, lunge: 0.14, kind: 'cross' },
+  jab: { startup: 0.11, active: 0.05, recover: 0.17, dmg: 4, cost: 8, reach: 1.6, lunge: 0.1, kind: 'jab' },
+  cross: { startup: 0.15, active: 0.05, recover: 0.24, dmg: 7, cost: 10, reach: 1.65, lunge: 0.14, kind: 'cross' },
   kick: { startup: 0.3, active: 0.08, recover: 0.36, dmg: 13, cost: 13, reach: 1.85, lunge: 0.1, kind: 'kick', heavy: true },
   knee: { startup: 0.2, active: 0.06, recover: 0.3, dmg: 10, cost: 10, reach: 1.35, lunge: 0.38, kind: 'knee', heavy: true },
   elbow: { startup: 0.15, active: 0.05, recover: 0.28, dmg: 9, cost: 8, reach: 1.3, lunge: 0.34, kind: 'elbow' },
@@ -179,7 +179,7 @@ export class Fight {
     if (def.ko || dist > mv.reach) { this.emit('miss', info); return; }
     if (def.dodging && def.dodgeAge <= DODGE_DUR - 0.04) {
       def.stats.evaded++;
-      if (def.dodgeAge <= DODGE_PERFECT) { this.counter(att, def, info); this.emit('evade', { ...info, perfect: true }); }
+      if (def.dodgeAge <= DODGE_PERFECT && !def.ai) { this.counter(att, def, info); this.emit('evade', { ...info, perfect: true }); }
       else this.emit('evade', { ...info, perfect: false });
       return;
     }
@@ -194,7 +194,8 @@ export class Fight {
       def.st = Math.max(0, def.st - dmg * 0.75);
       def.stats.blocked++;
       def.vx += att.dir * (mv.heavy ? 1.6 : 0.8);
-      const perfect = def.blockAge <= BLOCK_PERFECT;
+      // la IA solo contraataca cuando te ha «leído» (golpes repetidos); sus bloqueos normales no castigan
+      const perfect = def.blockAge <= BLOCK_PERFECT && (!def.ai || def.time < (def.readUntil || 0));
       if (perfect) { def.stats.perfect++; this.counter(att, def, info); }
       def.anim.kick({ tx: -0.12, nx: -0.12, pz: -0.05 });
       this.emit('block', { ...info, perfect, chip });
@@ -259,6 +260,14 @@ export class RivalAI {
     this.decide = 1.0; this.patCd = 2.2; this.queue = []; this.qDelay = 0; this.blockFor = 0;
     this.lastPat = ''; this.seen = new Set(); this.reacted = null;
     this.onTell = null; this.current = null;
+    this.hist = []; this.seenAct = null; this.onRead = null; this.reads = 0;
+  }
+  // ¿el jugador repite el mismo golpe? (3 seguidos del mismo tipo en menos de 2 s)
+  get reading() {
+    const h = this.hist;
+    if (h.length < 3) return false;
+    const a = h[h.length - 1], b = h[h.length - 2], c = h[h.length - 3];
+    return a.fam === b.fam && b.fam === c.fam && a.t - c.t < 2.0;
   }
   get speed() { return this.round === 1 ? 1 : this.round === 2 ? 0.86 : 0.74; }
   interrupt() { this.queue = []; this.current = null; this.blockFor = 0; }
@@ -268,6 +277,26 @@ export class RivalAI {
     const f = this.f, foe = this.foe;
     if (f.ko || foe.ko || f.freeze) return it;
     this.decide -= dt; this.patCd -= dt; this.blockFor -= dt;
+    // memoria de los golpes del jugador
+    const fa0 = foe.action;
+    let fresh = false;
+    if (fa0 && fa0 !== this.seenAct) {
+      this.seenAct = fa0; fresh = true;
+      const k = fa0.mv.kind;
+      this.hist.push({ fam: k === 'jab' || k === 'cross' ? 'puño' : k === 'kick' ? 'patada' : 'rodilla', t: foe.time });
+      if (this.hist.length > 6) this.hist.shift();
+    }
+    // le ha leído: bloqueo justo a tiempo (contraataque) y castigo
+    if (fresh && this.reading && !this.queue.length && !f.tell && !f.action && f.stun <= 0 && f.hitT <= 0.1) {
+      this.reads++;
+      this.blockFor = 0.5; this.hist.length = 0;
+      if (this.onRead) this.onRead();
+      it.block = true; it.blockPress = true; f.blocking = false; f.readUntil = f.time + 0.6;
+      return it;
+    }
+    if (f.crit > 0 && f.free && !this.queue.length && !f.tell) {
+      this.queue = [['crossR', 0], ['kickBig', 0.05]]; this.qDelay = 0;
+    }
     // ejecutar la secuencia del patrón
     if (this.queue.length) {
       this.qDelay -= dt;
