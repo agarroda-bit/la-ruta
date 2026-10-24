@@ -169,7 +169,7 @@ void main(){
   float crest = smoothstep(0.82, 0.9, vH * 0.85 + fN * 0.25 + lace * 0.3 - 0.1) * smoothstep(0.45, 0.6, lace);
   float band = sin(shallow * 22.0 - t * 2.2 + fN * 4.0) * 0.5 + 0.5;
   float shore = ring * smoothstep(0.6, 0.78, fN * 0.5 + band * 0.5 + lace * 0.3) + smoothstep(0.9, 0.99, ring) * 0.85;
-  float big = smoothstep(0.7, 0.95, vBig) * smoothstep(0.55, 0.68, fN * 0.5 + lace * 0.6);
+  float big = smoothstep(0.82, 0.98, vBig) * smoothstep(0.6, 0.72, fN * 0.45 + lace * 0.65);
   float foam = clamp(crest * 0.75 + shore + big, 0.0, 1.0);
   foam = smoothstep(0.3, 0.55, foam);
   col = mix(col, vec3(0.9, 0.98, 1.0) * (0.85 + 0.15 * max(dot(N, uSun), 0.0)), foam * 0.82);

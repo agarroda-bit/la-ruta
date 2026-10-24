@@ -18,7 +18,7 @@ const CSS = `
 .sm-polaroid img { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 2px; background: #9de3e0; }
 .sm-polaroid div { font-family: var(--texto); font-weight: 800; font-size: 15px; padding: 6px 0 8px; line-height: 1.1; }
 .sm-polaroid small { display: block; font-weight: 500; font-size: 12px; opacity: .7; }
-@media (max-width: 600px) { .sm-polaroid { width: 112px; margin-left: -56px; padding: 5px 5px 0; } .sm-polaroid div { font-size: 12px; padding: 4px 0 5px; } .sm-polaroid small { font-size: 10px; } }
+@media (max-width: 600px) { .sm-calas small { display: none; } .sm-polaroid { top: calc(205px + var(--safe-t)); width: 100px; margin-left: -50px; padding: 5px 5px 0; } .sm-polaroid div { font-size: 12px; padding: 4px 0 5px; } .sm-polaroid small { font-size: 10px; } }
 .sm-tb { display: flex; gap: 3px; justify-content: center; margin-top: 6px; }
 .sm-tb i { display: block; position: relative; width: 17px; height: 8px; border-radius: 3px; background: rgba(0,0,0,.35); overflow: hidden; }
 .sm-tb b { position: absolute; inset: 0; background: #fff; transform-origin: left; }
@@ -26,7 +26,7 @@ const CSS = `
 .btn-tactil.sm-activo { box-shadow: 0 0 22px #ffd23f, 0 5px 0 var(--tinta); }
 .sm-ptr { position: fixed; left: 0; top: 0; z-index: 3; pointer-events: none; color: #ffe14d; font-family: var(--titulo); text-align: center; transform: translate(-50%, -50%); text-shadow: 0 2px 0 #1a1036, 0 0 6px rgba(0,0,0,.4); display: none; }
 .sm-ptr i { display: block; font-style: normal; font-size: 34px; line-height: 1; -webkit-text-stroke: 2px #1a1036; }
-.sm-ptr b { display: block; font-size: 13px; color: #fff; }
+.sm-ptr b { display: block; font-size: 13px; color: #fff; white-space: nowrap; }
 .sm-turbo-box { position: fixed; right: calc(18px + var(--safe-r)); bottom: calc(146px + var(--safe-b)); z-index: 4; pointer-events: none; background: rgba(4, 52, 66, .72); border: 2px solid rgba(160, 255, 240, .35); border-radius: 12px; padding: 5px 10px; color: #fff; }
 @keyframes smpola { 0% { transform: translateY(-160%) rotate(-12deg); } 14% { transform: translateY(0) rotate(4deg); } 82% { transform: translateY(0) rotate(4deg); opacity: 1; } 100% { transform: translateY(-30px) rotate(-6deg) scale(.7); opacity: 0; } }
 .sm-viñeta { position: fixed; inset: 0; pointer-events: none; z-index: 1; box-shadow: inset 0 0 120px rgba(255, 190, 60, 0); transition: box-shadow .25s; }

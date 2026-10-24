@@ -13,7 +13,7 @@ const CRUISE = 21, TURBO_V = 33, BRAKE_V = 7, GRAV = 26;
 const TIME_LIMIT = 240;
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const COLORS = {
-  deep: '#0b5f86', mid: '#12b4c2', shallow: '#3fe2cb', sand: '#58dcc8',
+  deep: '#0b5f86', mid: '#12b4c2', shallow: '#22d2c2', sand: '#3cc9bd',
   zenith: '#1d7fd6', horizon: '#9fe3f0', haze: '#c4eef2', sun: '#fff1d0',
 };
 
@@ -264,7 +264,7 @@ export default {
       setTimeout(() => {
         if (st.disposed) return;
         audio.sfx('photo'); ui.flash();
-        engine.snapshot().then((cv) => { if (!st.disposed) ui.polaroid(cv, c.name, 'Foto mental 📸'); });
+        engine.snapshot().then((cv) => { if (st.disposed) return; const cp = document.createElement('canvas'); cp.width = cv.width; cp.height = cv.height; try { cp.getContext('2d').drawImage(cv, 0, 0); } catch (e) { /* nada */ } setTimeout(() => { if (!st.disposed) ui.polaroid(cp, c.name, 'Foto mental 📸'); }, 750); });
       }, 420);
       if (st.calas === 3) { setTimeout(() => { if (!st.disposed) { ctx.shout('¡LAS TRES CALAS!', { color: '#ffd23f' }); ctx.sticker('calas'); } }, 1500); }
       updateHud(); hud.pop('calas');
