@@ -38,7 +38,9 @@ export function zoneType(u) {
   return 'villa';
 }
 
-export function makeWorld(ctx, Lg) {
+export function makeWorld(ctx, Lg, opts = {}) {
+  const MK = opts.market || [-1, -1];
+  const inMarket = (s) => s > MK[0] - 12 && s < MK[1] + 12;
   const { rng } = ctx;
   const SF = S0 + Lg;
   const zone = (s) => {
@@ -360,7 +362,7 @@ export function makeWorld(ctx, Lg) {
   {
     const postG = new THREE.CylinderGeometry(0.09, 0.09, 1, 5); postG.translate(0, 0.5, 0);
     const posts = [];
-    for (let s = 4; s < SF + 70; s += 4.5) { if (deckW(s) > 0.2) continue; const p = W(s, -WALL - 0.15); tmp.position.copy(p); tmp.rotation.set(0, 0, 0); tmp.scale.set(1, 0.9, 1); tmp.updateMatrix(); posts.push(tmp.matrix.clone()); }
+    for (let s = 4; s < SF + 70; s += 4.5) { if (deckW(s) > 0.2 || inMarket(s)) continue; const p = W(s, -WALL - 0.15); tmp.position.copy(p); tmp.rotation.set(0, 0, 0); tmp.scale.set(1, 0.9, 1); tmp.updateMatrix(); posts.push(tmp.matrix.clone()); }
     const im = new THREE.InstancedMesh(postG, new THREE.MeshStandardMaterial({ color: '#fff8ec', flatShading: true, roughness: 0.6 }), posts.length);
     posts.forEach((m, i) => im.setMatrixAt(i, m));
     im.computeBoundingSphere();
@@ -372,7 +374,7 @@ export function makeWorld(ctx, Lg) {
     for (let s = 4; s < SF + 70; s += 3) {
       const dw = deckW(s);
       const p = W(s, -WALL - 0.12); const y0 = p.y + 0.55, y1 = p.y + 0.8;
-      const cur = { a: new THREE.Vector3(p.x, y0, p.z), b: new THREE.Vector3(p.x, y1, p.z), skip: dw > 0.2 };
+      const cur = { a: new THREE.Vector3(p.x, y0, p.z), b: new THREE.Vector3(p.x, y1, p.z), skip: dw > 0.2 || inMarket(s) };
       if (prev && !cur.skip && !prev.skip) {
         const c = Math.floor(s / 3) % 2 ? cA : cB;
         pos.push(prev.a.x, prev.a.y, prev.a.z, cur.a.x, cur.a.y, cur.a.z, prev.b.x, prev.b.y, prev.b.z, prev.b.x, prev.b.y, prev.b.z, cur.a.x, cur.a.y, cur.a.z, cur.b.x, cur.b.y, cur.b.z);
@@ -402,13 +404,14 @@ export function makeWorld(ctx, Lg) {
   const bulbList = []; // {p, c, string}
   const strings = [];
   const BULB = ['#ffd166', '#ff6f61', '#2ec4b6', '#ff4fa3', '#fff3c4', '#8ac926'];
-  function addGarland(k, a, b, n, sag, sOn) {
-    const id = strings.length; strings.push({ s: sOn, on: 0 });
+  function addGarland(k, a, b, n, sag, sOn, market = false) {
+    const id = strings.length; strings.push({ s: sOn, on: 0, market });
     for (const p of garland(k, a, b, n, sag)) bulbList.push({ p, c: BULB[bulbList.length % BULB.length], string: id });
   }
   const stallSpots = [];
   for (let s = S0 + 30; s < SF - 20; s += 14) {
     const u = (s - S0) / Lg, zt = zoneType(u), z = zone(s), ch = chunkAt(s);
+    if (inMarket(s)) continue;
     if (zt === 'pueblo') {
       if (rng() < 0.55) { const d = EDGE + rng.range(4.5, Math.max(6, z.flat - 4)); const end = place(ch.kit, s, d, 'road'); hutKit(ch.kit, rng); end(); }
       if (rng() < 0.3) { const d = -EDGE - rng.range(4, 7); const end = place(ch.kit, s, d, 'road'); hutKit(ch.kit, rng); end(); }
@@ -431,11 +434,40 @@ export function makeWorld(ctx, Lg) {
   // guirnaldas cruzando la carretera en los pueblos
   for (let s = S0 + 20; s < SF; s += 26) {
     const u = (s - S0) / Lg, zt = zoneType(u);
-    if (zt !== 'pueblo' && !(zt === 'villa' && s > SF - 140 && s < SF - 10)) continue;
+    if (inMarket(s) || (zt !== 'pueblo' && !(zt === 'villa' && s > SF - 140 && s < SF - 10))) continue;
     const ch = chunkAt(s);
     const pA = W(s, -WALL - 0.6), pB = W(s + 3, WALL + 0.6);
     for (const p of [pA, pB]) ch.kit.add(G.cyl5, '#6b4f3a', { x: p.x, y: p.y + 2.6, z: p.z, sx: 0.16, sy: 5.2, sz: 0.16 });
     addGarland(ch.kit, pA.clone().setY(pA.y + 5.1), pB.clone().setY(pB.y + 5.1), 18, 1.1, s);
+  }
+
+  // ───────── mercado nocturno: puestos a los dos lados, guirnaldas densas y pancarta ─────────
+  if (MK[0] > 0) {
+    for (let s = MK[0]; s < MK[1]; s += 9) {
+      for (const side of [-1, 1]) {
+        const ch = chunkAt(s);
+        const d = side * 9.4;
+        const [c1, c2] = rng.pick(STALL_COLS);
+        const end = place(ch.kit, s + (side > 0 ? 0 : 4.5), d, 'road'); stallKit(ch.kit, rng, c1, c2); end();
+      }
+    }
+    for (let s = MK[0] + 4; s < MK[1]; s += 11) {
+      const ch = chunkAt(s);
+      const pA = W(s, -8.2), pB = W(s + 2, 8.2);
+      for (const p of [pA, pB]) ch.kit.add(G.cyl5, '#6b4f3a', { x: p.x, y: p.y + 2.4, z: p.z, sx: 0.14, sy: 4.8, sz: 0.14 });
+      addGarland(ch.kit, pA.clone().setY(pA.y + 4.7), pB.clone().setY(pB.y + 4.7), 16, 0.9, s, true);
+      if ((s - MK[0]) % 22 < 11) addGarland(ch.kit, pA.clone().setY(pA.y + 4.2), W(s + 11, -8.2, 4.2), 10, 0.6, s, true);
+    }
+    // pancarta de entrada (dos caras)
+    const ch = chunkAt(MK[0]);
+    F(MK[0] - 8, _f);
+    const pA = W(MK[0] - 8, -7.2), pB = W(MK[0] - 8, 7.2);
+    for (const p of [pA, pB]) ch.kit.add(G.box, '#e63946', { x: p.x, y: p.y + 3, z: p.z, sx: 0.5, sy: 6, sz: 0.5 });
+    const ban = bannerMesh('MERCADO NOCTURNO', 13, 1.7);
+    ban.position.copy(_f.p).setY(_f.p.y + 5.2);
+    ban.rotation.y = Math.atan2(-_f.t.x, -_f.t.z);
+    ch.group.add(ban);
+    dynamic.marketBanner = ban;
   }
 
   // barcas de cola larga en el agua y islotes al fondo

@@ -382,3 +382,35 @@ export function garland(k, a, b, n, sag = 0.9, wire = '#2b2d42') {
   }
   return pts.slice(1, -1);
 }
+
+// ───────── carrito de comida del mercado (mira a +Z) ─────────
+export function cartKit(k, rng) {
+  const body = rng.pick(['#ff6f61', '#2ec4b6', '#ffd166', '#7b5cff', '#ff4fa3', '#8ac926']);
+  const umb = rng.pick([['#ff6f61', '#fff8ec'], ['#2ec4b6', '#ffd166'], ['#ff4fa3', '#fff8ec'], ['#ffb703', '#e63946']]);
+  k.add(G.box, body, { y: 0.75, sx: 1.7, sy: 0.8, sz: 1.0 });
+  k.add(G.box, '#fff8ec', { y: 1.2, sx: 1.75, sy: 0.08, sz: 1.05 });
+  k.add(G.box, '#c0c0cc', { x: -0.4, y: 1.3, sx: 0.6, sy: 0.12, sz: 0.6 });
+  for (let i = 0; i < 6; i++) k.add(G.sph, rng.pick(['#ffb703', '#e63946', '#8ac926', '#fff3c4']), { x: 0.2 + (i % 3) * 0.2, y: 1.32, z: -0.15 + Math.floor(i / 3) * 0.3, s: 0.16 });
+  for (const x of [-0.6, 0.6]) k.add(G.cyl10, '#2b2d42', { x, y: 0.28, z: 0.52, sx: 0.5, sy: 0.08, sz: 0.5, rx: Math.PI / 2 });
+  k.add(G.cyl5, '#dcdce6', { y: 1.9, sx: 0.06, sy: 1.4, sz: 0.06 });
+  for (let i = 0; i < 8; i++) k.add(G.cone4, umb[i % 2], { y: 2.6, sx: 2.2, sy: 0.45, sz: 2.2, ry: (i / 8) * Math.PI * 0.5 });
+  k.push(T({ z: -0.85, x: 0.3 })); personKit(k, { shirt: rng.pick(['#36c2b4', '#ffd166', '#fff8ec']), skin: rng.pick(SKINS), hat: 'paja' }); k.pop();
+}
+
+// ───────── tuk-tuk (mira a +Z, ruedas incluidas) ─────────
+export function tuktukKit(k) {
+  const body = '#ff3fa4', roof = '#1b998b';
+  k.add(G.box, body, { y: 0.75, z: -0.3, sx: 1.4, sy: 0.7, sz: 1.6 });
+  k.add(G.box, body, { y: 0.8, z: 0.75, sx: 0.8, sy: 0.6, sz: 0.7 });
+  k.add(G.box, '#fff8ec', { y: 0.65, z: -0.3, sx: 1.42, sy: 0.1, sz: 1.62 });
+  k.add(G.box, '#ffd166', { y: 0.98, z: -0.55, sx: 1.2, sy: 0.18, sz: 0.8 });
+  for (const x of [-0.68, 0.68]) for (const z of [-1.05, 0.45]) k.add(G.cyl5, '#dcdce6', { x, y: 1.55, z, sx: 0.05, sy: 1.2, sz: 0.05 });
+  k.add(G.box, roof, { y: 2.18, z: -0.25, sx: 1.6, sy: 0.12, sz: 2.2 });
+  k.add(G.box, '#ffd166', { y: 2.28, z: -0.25, sx: 1.5, sy: 0.08, sz: 2.0 });
+  k.add(G.box, '#a8e6ff', { y: 1.55, z: 0.95, sx: 1.2, sy: 0.6, sz: 0.04, rx: -0.15 });
+  k.add(G.box, '#fff3c4', { y: 0.95, z: 1.11, sx: 0.25, sy: 0.15, sz: 0.04 });
+  for (const [x, z] of [[-0.62, -0.75], [0.62, -0.75], [0, 0.9]]) k.add(G.cyl10, '#2b2d42', { x, y: 0.3, z, sx: 0.6, sy: 0.16, sz: 0.6, rz: Math.PI / 2 });
+  k.push(T({ y: 0.35, z: 0.55 })); personKit(k, { shirt: '#ffd166', skin: '#a86b43', sit: true, arms: false }); k.pop();
+  const rib = ['#ff6f61', '#ffd166', '#8ac926', '#2ec4b6'];
+  for (let i = 0; i < 4; i++) k.add(G.box, rib[i], { x: -0.6 + i * 0.4, y: 2.0, z: 0.85, sx: 0.1, sy: 0.35, sz: 0.03 });
+}

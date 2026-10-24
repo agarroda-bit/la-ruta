@@ -7,14 +7,15 @@ import * as THREE from 'three';
 import { Particles } from '../../core/engine.js';
 import { damp, clamp, lerp, smoothstep, fmtTime, disposeTree } from '../../core/util.js';
 import { makeWorld, zoneType, S0, HALF, WALL } from './mundo.js';
-import { Kit, G, T, matLit, scooterKit, wheelGeo, personKit, monkeyKit, dogBodyKit, dogHeadKit, chickenKit, localScooterKit, LOADS, cocoGeo } from './modelos.js';
+import { Kit, G, T, matLit, scooterKit, wheelGeo, personKit, monkeyKit, dogBodyKit, dogHeadKit, chickenKit, localScooterKit, LOADS, cocoGeo, cartKit, tuktukKit } from './modelos.js';
 import { makeSfx } from './sonidos.js';
 import { makeCapa } from './capa.js';
 
 const LG = 3200;           // metros de salida a meta
-const TIME_LIMIT = 126;    // segundos de sol
+const TIME_LIMIT = 117;    // segundos de sol
 const T_MARGEN = 16;       // margen para la 2ª estrella (y la 3ª con cocos)
 const COCO_3 = 0.65;       // fracción de cocos para la 3ª estrella
+const MK0 = S0 + 0.775 * LG, MK_GATES = 7, MK_GAP = 22, MK1 = MK0 + MK_GATES * MK_GAP; // mercado nocturno
 const V_BASE = 26, V_TURBO = 37, V_FRENO = 7, V_ARENA = 16;
 
 const SKY = [
@@ -25,6 +26,8 @@ const SKY = [
 ];
 
 const GRITOS = {
+  carro: ['¡CUIDADO CON EL PAD THAI!', '¡MI CURRY!', '¡QUE VUELAN LOS MANGOS!'],
+  tuktuk: ['¡TUK-TUK SIN INTERMITENTE!', '¡PI-PIII!'],
   mono: ['¡PERDÓN, SEÑOR MONO!', '¡EL MONO TIENE PREFERENCIA!', '¡MONO A BORDO!'],
   perro: ['¡GUAU! ¡QUE ESTABA DURMIENDO!', '¡PERRITO, PERDONA!', '¡SIESTA INTERRUMPIDA!'],
   gallina: ['¡COC-COCOOO!', '¡LLUEVEN PLUMAS!', '¡GALLINA EN FUGA!'],
@@ -58,7 +61,7 @@ export default {
     } catch (e) { /* sin fuentes: se usan las del sistema */ }
 
     const scene = new THREE.Scene();
-    const world = makeWorld(ctx, LG);
+    const world = makeWorld(ctx, LG, { market: [MK0 - 6, MK1 + 4] });
     const { F, W, SF, dynamic: dyn } = world;
     scene.add(world.scene, world.sky);
     scene.fog = new THREE.Fog('#ffcf96', 140, 1150);
@@ -86,13 +89,13 @@ export default {
     // ───────── scooter + piloto ({0}) + compi de paquete ({1}) ─────────
     const bike = new THREE.Group(); bike.rotation.order = 'YXZ';
     const inner = new THREE.Group(); bike.add(inner);
-    { const k = new Kit(); scooterKit(k, '#2ec4b6', '#fff8ec', true); const m = k.mesh(lit); m.castShadow = true; inner.add(m); }
+    { const k = new Kit(); scooterKit(k, '#2ec4b6', '#fff8ec', true); const m = k.mesh(lit); inner.add(m); }
     const headMat = new THREE.MeshBasicMaterial({ color: '#7a7060', toneMapped: false });
     const headlight = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.04), headMat); headlight.position.set(0, 1.15, 0.73); inner.add(headlight);
     const tailMat = new THREE.MeshBasicMaterial({ color: '#802030', toneMapped: false });
     const tail = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.07, 0.03), tailMat); tail.position.set(0, 0.6, -0.885); inner.add(tail);
     const wg = wheelGeo();
-    const wheels = [0.62, -0.6].map((z) => { const w = new THREE.Mesh(wg, lit); w.position.set(0, 0.27, z); w.castShadow = true; inner.add(w); return w; });
+    const wheels = [0.62, -0.6].map((z) => { const w = new THREE.Mesh(wg, lit); w.position.set(0, 0.27, z); inner.add(w); return w; });
     const rider = ctx.makeCharacter(ctx.looks[0]); rider.group.position.set(0, 0.37, -0.16); inner.add(rider.group);
     const pass = ctx.makeCharacter(ctx.looks[1]); pass.group.position.set(0, 0.42, -0.64); inner.add(pass.group);
     const extras = (ch) => {
@@ -103,6 +106,9 @@ export default {
     };
     const exR = extras(rider), exP = extras(pass);
     scene.add(bike);
+    bike.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+    const blob = new THREE.Mesh(new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#1a1036', transparent: true, opacity: 0.38, depthWrite: false }));
+    blob.scale.set(0.62, 1, 1.25); blob.renderOrder = 1; scene.add(blob);
     const headPos = (ch, out = new THREE.Vector3()) => { ch.rig.head.getWorldPosition(out); out.y += 0.55; return out; };
     const anchor0 = () => headPos(rider, V3), anchor1 = () => headPos(pass, V3);
 
@@ -136,6 +142,7 @@ export default {
     let first = true;
     for (let s = S0 + 110; s < SF - 110; s += rng.range(52, 74)) {
       const u = (s - S0) / LG, zt = zoneType(u), r = rng();
+      if (s > MK0 - 60 && s < MK1 + 50) continue;
       if (zt === 'acantilado') {
         if (r < 0.42) { const coco = first || rng.chance(0.4); first = false; addMonkey(s, coco); cocoLine(s - 14, rng.pick([-3.2, 3.2]), 3); }
         else if (r < 0.56) { addBump(s); cocoArc(s, lane()); }
@@ -159,6 +166,16 @@ export default {
         if (r < 0.2) addChickens(s); else cocoPattern(s);
       }
     }
+    // mercado nocturno: puertas de carritos que tapan dos carriles; el hueco tiene un coco dorado
+    const GAPS = [0, 3, -3, 0, -3, 3, 0];
+    for (let i = 0; i < MK_GATES; i++) {
+      const gs = MK0 + 10 + i * MK_GAP, gap = GAPS[i % GAPS.length];
+      for (const d of [-3.4, 0, 3.4]) if (Math.abs(d - gap * 1.13) > 1) haz.push({ type: 'carro', s: gs + rng.range(-1, 1), d, rs: 0.6, rd: 0.95, state: 'quieto' });
+      cocoSpots.push({ s: gs, d: gap * 1.13, y: 1.0, gold: true });
+      cocoSpots.push({ s: gs - 6, d: gap * 1.13, y: 1.0 });
+    }
+    haz.push({ type: 'tuktuk', s: MK1 + 30, side: 1, d: 10, state: 'espera', ph: 0, rs: 1.3, rd: 0.95 });
+    cocoLine(MK1 + 50, 0, 5);
     // los cocos no pueden caer encima de un charco o de un perro
     const cocos = cocoSpots.filter((c) => c.s < SF - 10 && !haz.some((h) => (h.type === 'charco' || h.type === 'perro') && Math.abs(h.s - c.s) < 3 && Math.abs(h.d - c.d) < 2));
     const totalCocos = cocos.length;
@@ -190,6 +207,10 @@ export default {
         const w1 = new THREE.Mesh(wg, lit); w1.position.set(0, 0.27, 0.62); const w2 = w1.clone(); w2.position.z = -0.6; h.mesh.add(w1, w2); h.wheels = [w1, w2];
         h.arm = new THREE.Group(); h.arm.position.set(-0.27, 1.38, -0.2); h.mesh.add(h.arm);
         h.arm.add(kitMesh((k) => k.add(G.box, '#ffd166', { y: -0.24, sx: 0.11, sy: 0.48, sz: 0.12 })));
+      } else if (h.type === 'carro') {
+        h.mesh = kitMesh((k) => cartKit(k, rng));
+      } else if (h.type === 'tuktuk') {
+        h.mesh = kitMesh((k) => tuktukKit(k));
       } else if (h.type === 'charco') {
         const p = W(h.s, h.d); F(h.s, fr);
         const yaw = Math.atan2(fr.t.x, fr.t.z);
@@ -211,14 +232,16 @@ export default {
 
     // cocos: un InstancedMesh
     const cocoIM = new THREE.InstancedMesh(cocoGeom, lit, Math.max(1, cocos.length));
-    cocoIM.castShadow = true;
+    const goldGeom = (() => { const k = new Kit(); k.add(G.ico1, '#ffc93c', { sx: 0.8, sy: 0.88, sz: 0.8 }); k.add(G.ico0, '#fff3b0', { y: 0.15, z: 0.25, sx: 0.34, sy: 0.34, sz: 0.2 }); k.add(G.cyl5, '#ff4fa3', { x: 0.06, y: 0.62, sx: 0.07, sy: 0.6, sz: 0.07, rz: -0.25 }); return k.geometry(); })();
+    const goldIM = new THREE.InstancedMesh(goldGeom, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.25, metalness: 0.6, emissive: '#7a4a00', emissiveIntensity: 0.9 }), Math.max(1, cocos.filter((c) => c.gold).length));
     const tmpO = new THREE.Object3D();
-    cocos.forEach((c, i) => { c.p = W(c.s, c.d, c.y); c.taken = false; c.i = i; tmpO.position.copy(c.p); tmpO.updateMatrix(); cocoIM.setMatrixAt(i, tmpO.matrix); });
-    cocoIM.computeBoundingSphere(); cocoIM.frustumCulled = false;
-    scene.add(cocoIM);
+    let ni = 0, gi = 0;
+    cocos.forEach((c) => { c.p = W(c.s, c.d, c.y); c.taken = false; c.im = c.gold ? goldIM : cocoIM; c.i = c.gold ? gi++ : ni++; tmpO.position.copy(c.p); tmpO.updateMatrix(); c.im.setMatrixAt(c.i, tmpO.matrix); });
+    cocos.forEach((c, i) => { c.hi = i; });
+    for (const im of [cocoIM, goldIM]) { im.computeBoundingSphere(); im.frustumCulled = false; scene.add(im); }
     // halo bajo cada coco cercano (para verlos de lejos)
     const halo = new THREE.InstancedMesh(new THREE.RingGeometry(0.45, 0.7, 12).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffe9a0', transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending }), Math.max(1, cocos.length));
-    cocos.forEach((c, i) => { const p = W(c.s, c.d, 0.06); tmpO.position.copy(p); tmpO.rotation.set(0, 0, 0); tmpO.scale.setScalar(c.y > 1.2 ? 0.001 : 1); tmpO.updateMatrix(); halo.setMatrixAt(i, tmpO.matrix); });
+    cocos.forEach((c, i) => { const p = W(c.s, c.d, 0.06); tmpO.position.copy(p); tmpO.rotation.set(0, 0, 0); tmpO.scale.setScalar(c.y > 1.2 ? 0.001 : 1); tmpO.updateMatrix(); halo.setMatrixAt(i, tmpO.matrix); if (c.gold) halo.setColorAt(i, new THREE.Color('#ffb703')); else halo.setColorAt(i, new THREE.Color('#ffffff')); });
     halo.frustumCulled = false; scene.add(halo);
 
     // ───────── estado ─────────
@@ -250,7 +273,9 @@ export default {
     const isTouch = () => inp.lastDevice === 'touch';
     const solEl = ctx.hud.set('sol', '<div class="pk-sol-cielo"><i></i></div><span>0:00.0</span>', 'centro');
     const solI = solEl.querySelector('i'), solSpan = solEl.querySelector('span');
+    const hudZoom = () => { if (!ctx.hud.el) return; const z = innerWidth >= 700 ? clamp(innerHeight / 560, 1, 2.2) : 1; ctx.hud.el.style.setProperty('--pk-z', z.toFixed(2)); };
     const updateHud = () => {
+      hudZoom();
       const left = Math.max(0, TIME_LIMIT - st.t);
       const k = clamp(st.t / TIME_LIMIT, 0, 1);
       solI.style.setProperty('--k', k.toFixed(3));
@@ -260,7 +285,7 @@ export default {
       if (st.mult > 1) { const e = ctx.hud.set('combo', `RACHA x${st.mult}`, 'izq'); e.classList.toggle('x3', st.mult >= 3); } else ctx.hud.remove('combo');
       ctx.hud.bar('prog', clamp((st.s - S0) / LG, 0, 1), 'VILLA 🏡', 'centro', '#ff6f61');
       const btn = document.querySelector('.controles .btn-tactil[data-id="boost"]');
-      if (btn) { btn.style.setProperty('--turbo', st.fuel.toFixed(3)); btn.dataset.pct = st.fuel > 0.98 ? '¡LLENO!' : st.boosting ? '' : Math.round(st.fuel * 100) + '%'; btn.classList.toggle('vacio', st.fuel < 0.12); btn.classList.toggle('lleno', st.fuel > 0.98 && st.phase === 'carrera'); }
+      if (btn) { btn.style.setProperty('--turbo', st.fuel.toFixed(3));  btn.classList.toggle('vacio', st.fuel < 0.12); btn.classList.toggle('lleno', st.fuel > 0.98 && st.phase === 'carrera'); }
       if (!isTouch()) ctx.hud.bar('turbo', st.fuel, 'TURBO (Shift)', 'abajo', '#ff9f1c'); else ctx.hud.remove('turbo');
     };
     updateHud();
@@ -280,7 +305,7 @@ export default {
       st.inv = 1.15; st.crashes++;
       if (st.combo >= 3) capa.num('racha rota', V.copy(bike.position).setY(bike.position.y + 2.2), 'mal');
       st.combo = 0; st.mult = 1;
-      const keep = { mono: 0.4, perro: 0.42, moto: 0.36, gallina: 0.62 }[kind] ?? 0.5;
+      const keep = { mono: 0.4, perro: 0.42, moto: 0.36, gallina: 0.62, carro: 0.45, tuktuk: 0.35 }[kind] ?? 0.5;
       st.v *= keep; st.wob = 0.8; st.rel *= -0.4; st.scream = 0.9;
       engine.shake(kind === 'gallina' ? 0.3 : 0.6); ctx.vibrate(kind === 'gallina' ? 30 : 70);
       audio.sfx('hit'); sfx.ay(); sfx.frenazo();
@@ -295,29 +320,35 @@ export default {
       } else if (kind === 'gallina') {
         h.state = 'vuela'; h.vy = 6; h.vd = (h.d >= st.d ? 1 : -1) * 4; sfx.coc();
         fx.emit(14, V.copy(hp).setY(hp.y + 0.5), { colors: ['#ffffff', '#fff8ec', '#ffe8c8'], vel: { x: 0, y: 3, z: 0 }, velSpread: 6, life: 1.4, gravity: -1.5, size: 0.3 });
+      } else if (kind === 'carro') {
+        h.state = 'golpe'; h.wob = 0.6; audio.sfx('crash', { vol: 0.5 });
+        fx.emit(10, V.copy(hp).setY(hp.y + 1.3), { colors: ['#ffb703', '#e63946', '#8ac926'], vel: { x: 0, y: 4, z: 0 }, velSpread: 4, life: 0.8, size: 0.3 });
+      } else if (kind === 'tuktuk') {
+        audio.sfx('tuk-horn');
       } else if (kind === 'moto') {
         h.bump = 1; audio.sfx('bike-horn'); capa.num('¡Mai pen rai!', V.copy(hp).setY(hp.y + 2.4));
       }
-      fxAdd.emit(5, V.copy(bike.position).setY(bike.position.y + 1), { colors: ['#ffd166', '#ffffff'], vel: { x: 0, y: 3, z: 0 }, velSpread: 6, life: 0.35, size: 0.4 });
+      fxAdd.emit(4, V.copy(bike.position).setY(bike.position.y + 1.2), { colors: ['#ffffff'], vel: { x: 0, y: 3, z: 0 }, velSpread: 5, life: 0.3, size: 0.3 });
     }
     function takeCoco(c, bonus = false) {
       c.taken = true;
       tmpO.position.set(0, -999, 0); tmpO.scale.setScalar(0.001); tmpO.updateMatrix();
-      cocoIM.setMatrixAt(c.i, tmpO.matrix); cocoIM.instanceMatrix.needsUpdate = true;
-      halo.setMatrixAt(c.i, tmpO.matrix); halo.instanceMatrix.needsUpdate = true;
-      gainCoco(c.p, bonus);
+      c.im.setMatrixAt(c.i, tmpO.matrix); c.im.instanceMatrix.needsUpdate = true;
+      halo.setMatrixAt(c.hi, tmpO.matrix); halo.instanceMatrix.needsUpdate = true;
+      gainCoco(c.p, bonus, c.gold);
     }
-    function gainCoco(pos, bonus = false) {
+    function gainCoco(pos, bonus = false, gold = false) {
       st.cocos++;
       st.combo = st.comboT > 0 ? st.combo + 1 : 1; st.comboT = 1.7;
       st.bestCombo = Math.max(st.bestCombo, st.combo);
-      const newMult = st.combo >= 10 ? 3 : st.combo >= 5 ? 2 : 1;
-      if (newMult > st.mult) { grito(`¡RACHA x${newMult}!`, { size: 'peque', color: newMult === 3 ? '#ff4fa3' : '#ffd166' }, 2); sfx.combo(newMult); }
+      const newMult = st.combo >= 15 ? 4 : st.combo >= 10 ? 3 : st.combo >= 5 ? 2 : 1;
+      if (newMult > st.mult) { if (newMult >= 3) grito(`RACHA x${newMult}`, { size: 'peque', color: newMult === 4 ? '#2ec4b6' : '#ff4fa3', ms: 900 }, 2); sfx.combo(newMult); }
       st.mult = newMult;
-      const pts = 10 * st.mult + (bonus ? 20 : 0);
+      const pts = (gold ? 50 : 10) * st.mult + (bonus ? 20 : 0);
       st.score += pts;
-      st.fuel = Math.min(1, st.fuel + 0.05);
-      if (bonus) capa.num(`¡COCO RECUPERADO! +${pts}`, pos, 'grande'); else capa.sum(pts, bike.position, st.mult);
+      st.fuel = Math.min(1, st.fuel + (gold ? 0.2 : 0.07));
+      if (gold) { sfx.combo(4); capa.num(`¡DORADO! +${pts}`, pos, 'grande'); fxAdd.emit(8, pos, { colors: ['#ffd166', '#fff3b0', '#ffb703'], vel: { x: 0, y: 3, z: 0 }, velSpread: 4, life: 0.5, size: 0.4 }); }
+      else if (bonus) capa.num(`¡COCO RECUPERADO! +${pts}`, pos, 'grande'); else capa.sum(pts, bike.position, st.mult);
       audio.sfx('coin-combo', { pitch: Math.pow(2, Math.min(st.combo - 1, 14) / 12), vol: 0.8 });
       sfx.coco(st.combo - 1);
       fxAdd.emit(4, pos, { colors: ['#fff3b0', '#ffd166'], vel: { x: 0, y: 2.5, z: 0 }, velSpread: 3, life: 0.35, size: 0.35 });
@@ -338,7 +369,8 @@ export default {
       if (canBoost && !st.boosting) { sfx.turbo(); audio.sfx('boost');  }
       st.boosting = canBoost;
       if (st.boosting) { st.fuel -= dt / 2.6; if (st.fuel <= 0) { st.fuel = 0; st.boostLock = true; st.boosting = false; } }
-      else st.fuel = Math.min(1, st.fuel + dt / 15);
+      else st.fuel = Math.min(1, st.fuel + dt / 13);
+      if (st.fuel >= 1 && !st.fullNotified) { st.fullNotified = true; sfx.plink(3); } if (st.fuel < 0.95) st.fullNotified = false;
       audio.intensity(st.boosting ? 1 : 0.4);
 
       const offroad = Math.abs(st.d) > HALF + 0.3;
@@ -374,7 +406,7 @@ export default {
         if (Math.sign(st.rel) === sgn) st.rel *= -0.35;
         if (st.wallT <= 0) {
           st.wallT = 0.5; st.v *= 0.88; engine.shake(0.18); sfx.chispas();
-          fxAdd.emit(6, V.copy(bike.position).addScaledVector(fr.n, sgn * 0.5).setY(bike.position.y + 0.5), { colors: ['#ffd166', '#ffffff', '#ff9f1c'], vel: { x: 0, y: 3, z: 0 }, velSpread: 5, life: 0.3, size: 0.3 });
+          fxAdd.emit(4, V.copy(bike.position).addScaledVector(fr.n, sgn * 0.5).setY(bike.position.y + 0.5), { colors: ['#ffd166', '#ffffff'], vel: { x: 0, y: 2, z: 0 }, velSpread: 3, life: 0.22, size: 0.2 });
         }
       }
       if (offroad && !air && Math.random() < 0.25) fx.emit(1, V.copy(bike.position).setY(bike.position.y + 0.2), { color: '#e0c08a', vel: { x: 0, y: 1.5, z: 0 }, velSpread: 2, life: 0.6, size: 0.55 });
@@ -417,12 +449,19 @@ export default {
         }
         if (h.type === 'mono' && h.coco && Math.abs(ds) < 1.5) h.minDD = Math.min(h.minDD, Math.abs(dd));
         if (h.state === 'vuela' || h.state === 'huye') continue;
-        if (st.y > 0.9 && h.type !== 'moto') continue; // lo saltas por encima
+        if (st.y > 0.9 && h.type !== 'moto' && h.type !== 'carro' && h.type !== 'tuktuk') continue; // lo saltas por encima
         if (Math.abs(ds) < 0.9 + h.rs && Math.abs(dd) < 0.42 + h.rd) crash(h.type, h);
         else if (h.type === 'moto' && !h.greeted && Math.abs(ds) < 4 && Math.abs(dd) < 3.8) {
           h.greeted = true; h.wave = 1.6; audio.sfx('bike-horn', { pitch: 1.2, vol: 0.6 });
           if (Math.random() < 0.6) capa.num(pick(['¡Sawadee!', '¡Hola, farang!', '¡Buen viaje!', '¡Feliz cumple!']), V.copy(h.mesh.position).setY(h.mesh.position.y + 2.6));
         }
+      }
+      // mercado nocturno
+      if (!st.mkIn && st.s > MK0 - 35) { st.mkIn = true; st.mkCrash = st.crashes; grito('¡MERCADO NOCTURNO!', { color: '#ffd166' }, 4); capa.say(0, '¡Zigzag entre los carritos! ¡Los cocos dorados valen x5!', anchor0, 2600); audio.sfx('crowd-ooh', { vol: 0.6 }); }
+      if (st.mkIn && !st.mkOut && st.s > MK1 + 4) {
+        st.mkOut = true;
+        if (st.crashes === st.mkCrash) { st.score += 300; grito('¡ENHEBRADO PERFECTO! +300', { color: '#2ec4b6' }, 4); audio.sfx('crowd-cheer', { vol: 0.7 }); sfx.fiesta(); st.fuel = 1; }
+        else grito('¡FUERA DEL MERCADO!', { size: 'peque', color: '#ffd166' }, 3);
       }
       // diálogos
       for (const tk of talks) if (!tk.done && tk.when()) { tk.done = true; capa.say(tk.who, tk.text, tk.who === 0 ? anchor0 : anchor1, 2800); break; }
@@ -430,7 +469,7 @@ export default {
       // turbo: estela, líneas de aire
       if (st.boosting) {
         const rear = V.copy(bike.position).addScaledVector(bikeDir, -0.95).setY(bike.position.y + 0.4);
-        fxAdd.emit(1, rear, { colors: ['#ffd166', '#ff9f1c', '#ff6f61'], vel: { x: bikeDir.x * 12, y: 0.6, z: bikeDir.z * 12 }, velSpread: 1.2, life: 0.28, size: 0.38, gravity: 0 });
+        if (Math.random() < 0.5) fxAdd.emit(1, rear, { colors: ['#ffd166', '#ffb36b'], vel: { x: bikeDir.x * 14, y: 0.4, z: bikeDir.z * 14 }, velSpread: 0.6, life: 0.2, size: 0.22, gravity: 0 });
         if (Math.random() < 0.35) {
           F(st.s + 16, fr2);
           const p = V2.copy(fr2.p).addScaledVector(fr2.n, st.d + (Math.random() - 0.5) * 12).setY(fr2.p.y + 0.5 + Math.random() * 3.5);
@@ -504,6 +543,14 @@ export default {
           continue;
         }
         if (!vis) continue;
+        if (h.type === 'carro') { if (!h.placed) { h.placed = true; W(h.s, h.d, 0, h.mesh.position); h.mesh.rotation.y = world.yawAt(h.s, -1, 0) + (h.d - 0.5) * 0.15; } if (h.state === 'golpe') { h.mesh.rotation.z = Math.sin(tt * 30) * 0.15 * Math.max(0, h.wob -= dt); } continue; }
+        if (h.type === 'tuktuk') {
+          if (h.state === 'espera' && st.phase === 'carrera' && ds < st.v * 1.9 + 4) { h.state = 'cruza'; audio.sfx('tuk-horn'); capa.num('¡PI-PIIII!', V.copy(h.mesh.position).setY(h.mesh.position.y + 3)); }
+          if (h.state === 'cruza') { h.d -= 8.5 * dt; if (h.d < -12) h.state = 'fuera'; }
+          W(h.s, h.d, h.state === 'cruza' ? Math.abs(Math.sin(tt * 16)) * 0.05 : 0, h.mesh.position);
+          h.mesh.rotation.y = world.yawAt(h.s, 0, -1);
+          continue;
+        }
         if (h.type === 'mono') {
           if (h.state === 'espera') {
             if (st.phase === 'carrera' && ds < st.v * h.trig + 6) { h.state = 'cruza'; h.ph = 0; if (h.coco) st.monkeySeen = true; audio.sfx('monkey', { vol: 0.6 }); }
@@ -628,7 +675,7 @@ export default {
       let dirty = false;
       for (const sg of dyn.bulbStrings) {
         const late = (sg.s - S0) / LG > 0.66;
-        const tgt = Math.max(night, late && st.s > sg.s - 130 ? 1 : 0, (sg.s - S0) / LG > 0.88 ? 1 : 0) ;
+        const tgt = Math.max(night, late && st.s > sg.s - 130 ? 1 : 0, (sg.s - S0) / LG > 0.88 ? 1 : 0, sg.market ? 1 : 0);
         const before = sg.on;
         sg.on = damp(sg.on, tgt, 3, dt);
         if (Math.abs(sg.on - before) > 0.004) dirty = true;
@@ -746,6 +793,8 @@ export default {
         bike.rotation.y = Math.atan2(bikeDir.x, bikeDir.z);
         bike.rotation.z = st.lean;
         bike.rotation.x = -Math.asin(clamp(fr.t.y, -0.5, 0.5)) - clamp(st.vy * 0.025, -0.15, 0.15);
+        blob.position.set(bike.position.x, fr.p.y + 0.06, bike.position.z); blob.rotation.y = bike.rotation.y;
+        { const k = 1 / (1 + st.y * 0.6); blob.scale.set(0.62 * k, 1, 1.25 * k); blob.material.opacity = 0.38 * k; }
         st.squash = Math.max(0, st.squash - dt * 4);
         inner.scale.set(1 + st.squash * 0.08, 1 - st.squash * 0.14, 1);
         inner.position.y = st.phase === 'carrera' ? Math.sin(st.time * 40) * 0.008 * clamp(st.v / 20, 0, 1) : Math.sin(st.time * 18) * 0.01;
@@ -760,9 +809,9 @@ export default {
           if (c.taken || c.s < st.s - 5 || c.s > st.s + 160) continue;
           tmpO.position.copy(c.p); tmpO.position.y += Math.sin(st.time * 3 + c.s) * 0.12;
           tmpO.rotation.set(0, st.time * 2.2 + c.s, 0.25); tmpO.scale.setScalar(1.05); tmpO.updateMatrix();
-          cocoIM.setMatrixAt(c.i, tmpO.matrix); any = true;
+          c.im.setMatrixAt(c.i, tmpO.matrix); any = true;
         }
-        if (any) cocoIM.instanceMatrix.needsUpdate = true;
+        if (any) { cocoIM.instanceMatrix.needsUpdate = true; goldIM.instanceMatrix.needsUpdate = true; }
         updateWorld(dt);
         updateCamera(dt);
         engineSnd.set({ rate: clamp(0.2 + st.v / 34 + (st.boosting ? 0.25 : 0), 0, 1.6), vol: st.phase === 'carrera' || st.phase === 'fin' ? 0.32 : 0.14 });

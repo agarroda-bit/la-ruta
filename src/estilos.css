@@ -344,3 +344,14 @@ body.con-resultados .hud, body.con-resultados [class*="hud"]:not(.resultados *),
 .carta.cerrada .carta-estrellas { opacity: .35; }
 .editor-panel { -webkit-mask-image: linear-gradient(180deg, #000 85%, transparent); mask-image: linear-gradient(180deg, #000 85%, transparent); padding-bottom: 40px; }
 .portada-sub { text-wrap: balance; max-width: 92vw; }
+.carta-botones .boton { white-space: nowrap; }
+.carta .boton.jugar { font-size: 15px; padding: 10px 8px; }
+.carta .boton.reto { font-size: 11px; }
+.fin-botones { top: auto; bottom: calc(14px + var(--safe-b)); right: calc(14px + var(--safe-r)); }
+.fin-botones .boton.secundario { background: rgba(11,6,32,.6); color: #fff; border-color: rgba(255,255,255,.5); font-size: 12px; min-height: 40px; padding: 6px 12px; }
+.fin-fin { margin-bottom: 40px; }
+.fin-cierre { margin-bottom: 38vh; pointer-events: auto; }
+.aviso-peg { top: auto; bottom: calc(24px + var(--safe-b)); left: calc(14px + var(--safe-l)); transform: translate(0, 30px); padding: 6px 12px 6px 6px; font-size: 14px; max-width: 70vw; }
+.aviso-peg.entra { transform: translate(0, 0); }
+.aviso-peg .peg-mini svg { width: 44px; height: 44px; }
+body.con-resultados .aviso-peg { bottom: auto; top: calc(10px + var(--safe-t)); left: 50%; transform: translate(-50%, 0); }

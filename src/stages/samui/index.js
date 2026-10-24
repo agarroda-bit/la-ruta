@@ -8,6 +8,7 @@ import { createSea, createWake, createSky, MAX_BIG, BIG } from './mar.js';
 import { buildWorld, CHANNEL, CALA_R } from './mundo.js';
 import { buildBoat } from './barca.js';
 import { mountFx } from './efectos.js';
+import { createDolphins } from './delfines.js';
 
 const CRUISE = 21, TURBO_V = 33, BRAKE_V = 7, GRAV = 26;
 const TIME_LIMIT = 240;
@@ -25,7 +26,7 @@ export default {
     joystick: 'steer',
     buttons: [
       { id: 'boost', label: 'TURBO', keys: ['ShiftLeft', 'ShiftRight', 'KeyX', 'KeyW', 'ArrowUp'], pad: [0, 5, 7], color: '#ff9f1c', size: 'big' },
-      { id: 'b', label: 'FRENO', keys: ['Space', 'KeyS', 'ArrowDown', 'KeyZ'], pad: [1, 6, 4], color: '#2ec4b6' },
+      { id: 'b', label: 'FRENO', keys: ['Space', 'KeyS', 'ArrowDown', 'KeyZ'], pad: [1, 6, 4], color: '#2ec4b6', hidden: true },
     ],
   },
   intro: [
@@ -96,8 +97,8 @@ export default {
     };
     st.velYaw = st.yaw;
     // tiempo "bueno" para las estrellas: recorrido + desvíos de las calas a buen ritmo
-    const goodTime = Math.round(L / 13.3);          // ~1:50: una persona buena con las 3 calas
-    const okTime = Math.round(goodTime * 1.22);       // 2★ por tiempo, más holgado
+    const goodTime = Math.round(L / 14.6);          // ~1:40: turbo, buenas líneas y las 3 calas
+    const okTime = Math.round(goodTime * 1.25);       // 2★ por tiempo, más holgado
 
     // ───────── olas grandes (series que llegan por el canal) ─────────
     const series = [];
@@ -105,16 +106,26 @@ export default {
       if (calas.some((c) => Math.abs(c.s - s) < 70)) continue;
       series.push({ s, n: ctx.rng.chance(0.4) ? 2 : 3, spawned: false });
     }
+    // la SERIE GIGANTE: 4 olas enormes encadenadas entre la 2.ª y la 3.ª cala
+    const giantS = (calas[1].s + calas[2].s) / 2;
+    for (let i = series.length - 1; i >= 0; i--) if (series[i].s > giantS - 240 && series[i].s < giantS + 120) series.splice(i, 1);
+    series.push({ s: giantS, n: 4, giant: true, spawned: false });
+    series.sort((a, b) => a.s - b.s);
+    // delfines entre la salida y la 1.ª-2.ª cala
+    const dolphinS0 = (calas[0].s + calas[1].s) / 2 - 60;
+    for (let i = series.length - 1; i >= 0; i--) if (!series[i].giant && Math.abs(series[i].s - dolphinS0 - 100) < 150) series.splice(i, 1);
+    const dolphins = createDolphins(scene, { s0: dolphinS0 });
     const ridges = sea.big.map((b) => ({ b, active: false, age: 0, target: 0, prevAl: 0, done: false, dying: false }));
     function spawnSeries(se) {
       const free = ridges.filter((r) => !r.active);
       if (free.length < se.n) return false;
       for (let k = 0; k < se.n; k++) {
-        const r = free[k], s = se.s + k * 17, a = path.at(s);
+        const r = free[k], s = se.s + k * (se.giant ? 22 : 17), a = path.at(s);
         Object.assign(r.b, { cx: a.x, cz: a.z, dx: -a.tx, dz: -a.tz, amp: 0 });
-        Object.assign(r, { active: true, age: -k * 0.25, target: 1.35 + ctx.rng.range(-0.1, 0.15), prevAl: 999, done: false, dying: false });
+        Object.assign(r, { active: true, age: -k * 0.25, target: se.giant ? 2.0 : 1.35 + ctx.rng.range(-0.1, 0.15), giant: !!se.giant, prevAl: 999, done: false, dying: false });
       }
       se.spawned = true;
+      if (se.giant) { st.combo = 0; st.giantOn = true; ctx.shout('🌊 ¡SERIE GIGANTE!', { color: '#7cf5e6' }); engine.shake(0.3); audio.sfx('whoosh'); ui.hint('¡Cuatro olas enormes! Cógelas <b>todas rectas</b> con turbo para el combo', 2600); return true; }
       if (!st.waveHint) { st.waveHint = true; ctx.shout('🌊 ¡OLAS!', { size: 'peque', color: '#7cf5e6' }); ui.hint('Cógelas <b>rectas</b> y con velocidad: ¡a volar! Cae recto y ganas turbo ⚡', 2600); }
       else audio.sfx('whoosh', { vol: 0.5 });
       return true;
@@ -259,12 +270,12 @@ export default {
       audio.sfx('star'); audio.sfx('sticker');
       ctx.vibrate(40);
       ctx.shout(`${c.emoji} ¡CALA ${st.calas}/3!`, { color: '#7cf5e6' });
-      for (let i = 0; i < 4; i++) sparkle.emit(14, { x: st.x + (Math.random() - 0.5) * 8, y: 2 + Math.random() * 3, z: st.z + (Math.random() - 0.5) * 8 }, { colors: ['#fff6a8', '#ffd23f', '#7cf5e6', '#ffffff'], vel: { x: 0, y: 3, z: 0 }, velSpread: 4, life: 1.4, gravity: -2, size: 0.6 });
+      for (let i = 0; i < 3; i++) sparkle.emit(6, { x: st.x + (Math.random() - 0.5) * 8, y: 2 + Math.random() * 3, z: st.z + (Math.random() - 0.5) * 8 }, { colors: ['#fff6a8', '#ffd23f', '#7cf5e6', '#ffffff'], vel: { x: 0, y: 3, z: 0 }, velSpread: 4, life: 1.4, gravity: -2, size: 0.6 });
       st.cheerT = 1.8;
       setTimeout(() => {
         if (st.disposed) return;
         audio.sfx('photo'); ui.flash();
-        engine.snapshot().then((cv) => { if (st.disposed) return; const cp = document.createElement('canvas'); cp.width = cv.width; cp.height = cv.height; try { cp.getContext('2d').drawImage(cv, 0, 0); } catch (e) { /* nada */ } setTimeout(() => { if (!st.disposed) ui.polaroid(cp, c.name, 'Foto mental 📸'); }, 750); });
+        engine.snapshot().then((cv) => { if (st.disposed) return; const cp = document.createElement('canvas'); cp.width = cp.height = 220; try { const m = Math.min(cv.width, cv.height); cp.getContext('2d').drawImage(cv, (cv.width - m) / 2, (cv.height - m) * 0.4, m, m, 0, 0, 220, 220); } catch (e) { /* nada */ } setTimeout(() => { if (!st.disposed) ui.polaroid(cp, c.name, 'Foto mental 📸'); }, 750); });
       }, 420);
       if (st.calas === 3) { setTimeout(() => { if (!st.disposed) { ctx.shout('¡LAS TRES CALAS!', { color: '#ffd23f' }); ctx.sticker('calas'); } }, 1500); }
       updateHud(); hud.pop('calas');
@@ -278,18 +289,27 @@ export default {
         st.limpias++;
         st.turbo = Math.min(1, st.turbo + 0.34);
         engine.shake(0.22);
-        ctx.shout(st.turbo >= 0.99 ? '¡LIMPIO! TURBO A TOPE' : '¡LIMPIO! +TURBO', { size: 'peque', color: '#ffd23f' });
-        audio.sfx('coin', { pitch: 1.1 });
-        
+        if (st.lastGiant) {
+          st.combo = (st.combo || 0) + 1;
+          ctx.shout(st.combo >= 4 ? '¡COMBO PERFECTO! ×4' : `¡GIGANTE! ×${st.combo}`, { color: '#ffd23f' });
+          audio.sfx('coin', { pitch: 1 + st.combo * 0.12 });
+          engine.slowmo(0.35, 0.5);
+          if (st.combo >= 4) { st.comboPerfect = true; audio.sfx('star'); engine.shake(0.5); for (let i = 0; i < 3; i++) sparkle.emit(8, { x: st.x, y: st.y + 2, z: st.z }, { colors: ['#ffd23f', '#7cf5e6', '#ffffff'], vel: { x: 0, y: 4, z: 0 }, velSpread: 6, life: 1.2, gravity: -3 }); }
+        } else {
+          ctx.shout(st.turbo >= 0.99 ? '¡LIMPIO! TURBO A TOPE' : '¡LIMPIO! +TURBO', { size: 'peque', color: '#ffd23f' });
+          audio.sfx('coin', { pitch: 1.1 });
+        }
       } else {
         st.turbo = Math.min(1, st.turbo + 0.1);
         st.speed *= 0.78;
         engine.shake(0.45);
         ctx.shout('¡PLOF!', { size: 'peque', color: '#9ad7ff' });
+        if (st.lastGiant) st.combo = -9;
       }
       st.pitch = clean ? -0.05 : -0.18;
     }
-    function launch(power) {
+    function launch(power, giant) {
+      st.lastGiant = !!giant;
       st.air = true; st.airT = 0; st.vy = power;
       st.olas++;
       audio.sfx('whoosh');
@@ -406,7 +426,7 @@ export default {
         if (!r.done && r.prevAl > 0 && r.prevAl < 50 && al <= 0 && Math.abs(la) < BIG.half - 3 && !st.air && b.amp > 0.6 && playing) {
           r.done = true;
           const cosA = -(fxv * b.dx + fzv * b.dz);
-          if (st.speed > 13 && cosA > 0.8) launch(4 + st.speed * 0.27);
+          if (st.speed > 13 && cosA > 0.8) launch((4 + st.speed * 0.27) * (r.giant ? 1.22 : 1), r.giant);
           else if (st.speed > 6) {
             st.air = true; st.airT = 0; st.vy = 2.6; st.speed *= 0.85;
             splash(st.x, st.y, st.z, 14, 3);
@@ -415,6 +435,18 @@ export default {
         }
         r.prevAl = al;
       }
+
+      // ── delfines ──
+      dolphins.update(dt, tAll, st, path, sea, {
+        start: () => { ctx.shout('🐬 ¡DELFINES!', { color: '#9ad7ff' }); ui.hint('¡Pasa <b>junto a los delfines</b> cuando salten: cada uno te da turbo!', 2600); audio.sfx('bell', { vol: 0.5 }); },
+        splash: (x, y, z) => fx.emit(6, { x, y: y + 0.2, z }, { spread: 1, vel: { x: 0, y: 3, z: 0 }, velSpread: 2.5, colors: ['#ffffff', '#dff8ff'], life: 0.7, size: 0.4, gravity: -12 }),
+        gift: (d) => {
+          st.turbo = Math.min(1, st.turbo + 0.34); st.dolphins = (st.dolphins || 0) + 1;
+          audio.sfx('coin', { pitch: 1.2 + st.dolphins * 0.1 }); ctx.vibrate(25);
+          ctx.shout(st.dolphins >= 3 ? '🐬 ¡AMIGO DE LOS DELFINES!' : '🐬 ¡+TURBO!', { size: 'peque', color: '#9ad7ff' });
+          sparkle.emit(10, { x: d.x, y: d.y + 1, z: d.z }, { colors: ['#9ad7ff', '#ffffff', '#ffd23f'], vel: { x: 0, y: 3, z: 0 }, velSpread: 3, life: 1, gravity: -3 });
+        },
+      });
 
       // ── altura, cabeceo y balanceo con el mar de verdad ──
       const h = sea.heightAt(st.x, st.z);
@@ -513,11 +545,11 @@ export default {
 
       // ── cámara ──
       if (cam.orbitT > 0) cam.orbitT -= realDt;
-      cam.orbit = damp(cam.orbit, cam.orbitT > 0 ? 1 : 0, 3, realDt);
+      cam.orbit = damp(cam.orbit, cam.orbitT > 0 ? 1 : 0, 1.5, realDt);
       cam.yaw += angleDiff(cam.yaw, st.yaw * 0.6 + (st.yaw + angleDiff(st.yaw, st.velYaw)) * 0.4) * (1 - Math.exp(-4 * dt));
-      let cy = cam.yaw + cam.orbit * cam.orbitSide * 1.25;
+      let cy = cam.yaw + cam.orbit * cam.orbitSide * 0.8;
       let dist = 8.8 + st.speed * 0.07 + cam.orbit * 2.5, hgt = 4.6 + cam.orbit * 1.2 - (st.air ? 0.4 : 0);
-      if (!st.running && !st.done) { cy = st.yaw + 0.55 + Math.sin(tAll * 0.3) * 0.15; dist = 12.5; hgt = 5.2; }
+      if (!st.running && !st.done) { cy = st.yaw + Math.PI + 0.75 + Math.sin(tAll * 0.3) * 0.08; dist = 9.5; hgt = 2.8; }
       if (st.done) { cam.finishA += dt * 0.3; cy = st.yaw + Math.PI * 0.75 + cam.finishA; dist = 12; hgt = 4.2; }
       let cx = st.x - Math.sin(cy) * dist, cz = st.z - Math.cos(cy) * dist;
       // que la cámara no se meta dentro de las rocas
@@ -527,8 +559,9 @@ export default {
       }
       const camH = Math.max(sea.heightAt(cx, cz) + 2.2, sea.heightAt(cx + Math.sin(cy) * 3, cz + Math.cos(cy) * 3) + 1.8, st.y * 0.5 + hgt);
       tmpV.set(cx, camH, cz);
-      camera.position.lerp(tmpV, 1 - Math.exp(-6 * dt));
-      camera.lookAt(st.x + fxv * 8 * (1 - cam.orbit), st.y + 1.5, st.z + fzv * 8 * (1 - cam.orbit));
+      camera.position.lerp(tmpV, 1 - Math.exp(-(cam.orbit > 0.02 ? 3 * realDt : 6 * dt)));
+      const intro = !st.running && !st.done ? 1 : 0;
+      camera.lookAt(st.x + fxv * 8 * (1 - cam.orbit) * (1 - intro) - fzv * 1.6 * intro, st.y + 1.5 - intro * 0.3, st.z + fzv * 8 * (1 - cam.orbit) * (1 - intro) + fxv * 1.6 * intro);
       // flecha de pantalla hacia la siguiente boya
       const ngt = gates[st.gate];
       if (playing && ngt && !etapa.debugCam) {
@@ -574,10 +607,10 @@ export default {
       if (win && stars < 3) lines.push(`3 estrellas: menos de ${fmtTime(goodTime)} y las 3 calas. 2 estrellas: menos de ${fmtTime(okTime)} o 2 calas.`);
       else if (win && st.rockHits === 0) lines.push('Bonita vuelve sin un rasguño. Nok estará orgullosa.');
       else if (win) lines.push('Bonita vuelve con algún rasguño… Ni una palabra a Nok.');
-      const score = !win ? st.gatesOk * 30 + st.calas * 300 : Math.max(0, Math.round((goodTime * 1.6 - time) * 30)) + st.calas * 500 + st.olas * 60 + st.limpias * 40 + st.gatesOk * 30 - st.rockHits * 40;
+      const score = !win ? st.gatesOk * 30 + st.calas * 300 : Math.max(0, Math.round((goodTime * 1.6 - time) * 30)) + st.calas * 500 + st.olas * 60 + st.limpias * 40 + st.gatesOk * 30 + (st.dolphins || 0) * 150 + (st.comboPerfect ? 600 : 0) - st.rockHits * 40;
       ctx.finish({
         win, stars, time, score: Math.max(0, score),
-        stats: [['Tiempo', fmtTime(time)], ['Calas', `${st.calas}/3`], ['Olas saltadas', `${st.olas}`], ['Boyas', `${st.gatesOk}/${gates.length}`], ['Choques', `${st.rockHits + st.boatHits}`]],
+        stats: [['Tiempo', fmtTime(time)], ['Calas', `${st.calas}/3`], ['Olas saltadas', `${st.olas}${st.comboPerfect ? ' + combo' : ''}`], ['Delfines', `${st.dolphins || 0}/3`], ['Boyas', `${st.gatesOk}/${gates.length}`], ['Choques', `${st.rockHits + st.boatHits}`]],
         moreStats: { olas: st.olas },
         shareText: `${fmtTime(time)}, ${st.calas}/3 calas y ${st.olas} olas saltadas en Koh Samui`,
         title: win ? (st.calas === 3 ? '¡Exploradores de calas!' : '¡Bonita llega a puerto!') : 'Se os hizo de noche…',

@@ -133,30 +133,35 @@ void main(){
   #endif
   vec3 N = normalize(vN + vec3(gr.x, 0.0, gr.y) * 0.06 * near);
 
-  // color del agua según profundidad
-  vec3 water = mix(uDeep, uMid, smoothstep(0.0, 0.45, shallow));
-  water = mix(water, uShallow, smoothstep(0.4, 0.85, shallow));
-  water = mix(water, uSand, smoothstep(0.15, 0.9, sand) * 0.7);
-  // luz que atraviesa las crestas (falso "subsurface")
-  float sss = clamp(vH * 0.9 + 0.2, 0.0, 1.0) * pow(clamp(dot(V, -vec3(uSun.x, 0.0, uSun.z)) * 0.5 + 0.5, 0.0, 1.0), 2.0);
-  water += vec3(0.02, 0.22, 0.2) * sss * (1.0 - shallow * 0.6);
-  water *= 0.88 + 0.24 * clamp(vH + 0.5, 0.0, 1.0);
-  // cáusticas en los bajíos
+  // color del agua: mar profundo + bajíos transparentes con lecho de arena visible
+  float depth = max(1.7, mix(12.0, 3.0, smoothstep(0.25, 1.0, shallow)) - sand * 1.2);
+  vec2 bq = q + N.xz * 1.2;                              // refracción falsa del fondo
+  float rip = sin(dot(bq, vec2(0.9, 0.4)) * 1.4 + vnoise(bq * 0.3) * 6.0) * 0.5 + 0.5;
+  float patchN = vnoise(bq * 0.12 + 3.0);
+  vec3 bed = vec3(0.66, 0.6, 0.42) * (0.62 + 0.38 * rip);
+  bed = mix(bed, vec3(0.16, 0.3, 0.2), smoothstep(0.62, 0.72, patchN) * 0.8);   // manchas de algas y piedras
   #ifndef LOW
-  if (shallow > 0.25 && dist < 140.0) {
-    float c = caustic(q * 0.22 + vec2(17.0, 3.0), t * 0.6);
-    c = max(0.0, c - 0.7) * 3.3;  // solo las líneas brillantes
-    water += vec3(0.55, 0.95, 0.85) * c * smoothstep(0.35, 0.85, shallow) * 0.16 * (1.0 - smoothstep(60.0, 140.0, dist));
+  if (shallow > 0.3 && dist < 150.0) {
+    float c = caustic(bq * 0.22 + vec2(17.0, 3.0), t * 0.6);
+    bed += vec3(0.9, 1.0, 0.95) * smoothstep(0.35, 0.9, c) * 0.55 * (1.0 - smoothstep(70.0, 150.0, dist));
   }
   #endif
+  vec3 absorb = exp(-depth * vec3(0.95, 0.2, 0.12));
+  vec3 shallowCol = bed * absorb + uMid * (1.0 - exp(-depth * 0.18)) * 0.8;
+  vec3 deepCol = mix(uDeep, uMid, smoothstep(0.0, 0.45, shallow));
+  vec3 water = mix(deepCol, shallowCol, smoothstep(0.3, 0.62, shallow));
+  // luz que atraviesa las crestas (falso "subsurface"), solo mar abierto
+  float sss = clamp(vH * 0.9 + 0.2, 0.0, 1.0) * pow(clamp(dot(V, -vec3(uSun.x, 0.0, uSun.z)) * 0.5 + 0.5, 0.0, 1.0), 2.0);
+  water += vec3(0.02, 0.22, 0.2) * sss * (1.0 - smoothstep(0.3, 0.6, shallow));
+  water *= 0.9 + 0.2 * clamp(vH + 0.5, 0.0, 1.0);
 
   // reflejo del cielo + sol
   vec3 R = reflect(-V, N);
   vec3 sky = mix(uHorizon, uZenith, clamp(R.y * 1.8, 0.0, 1.0));
   float fres = 0.04 + 0.96 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
-  vec3 col = mix(water, sky, fres * 0.6 * (1.0 - shallow * 0.6));
+  vec3 col = mix(water, sky, fres * 0.6 * (1.0 - smoothstep(0.3, 0.8, shallow) * 0.8));
   float sd = max(dot(R, uSun), 0.0);
-  col += uSunCol * (pow(sd, 600.0) * 9.0 + pow(sd, 60.0) * 0.35);
+  col += uSunCol * (pow(sd, 600.0) * 9.0 + pow(sd, 140.0) * 0.18);
   // destellos sueltos (purpurina del sol)
   vec2 cell = floor(q * 2.5);
   float sp = hash(cell + floor(t * 5.0));

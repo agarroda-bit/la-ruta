@@ -27,7 +27,6 @@ const CSS = `
 .hud-prog .barra-in { background: linear-gradient(90deg, #ffd166, #ff6f61) !important; }
 .controles .btn-tactil[data-id="boost"] { opacity: 1; overflow: visible; }
 .controles .btn-tactil[data-id="boost"]::before { content: ''; position: absolute; inset: -17px; border-radius: 50%; background: conic-gradient(from 0deg, #fff3b0 0deg, #ffd166 calc(var(--turbo, 1) * 360deg), rgba(255,248,236,.28) calc(var(--turbo, 1) * 360deg)); -webkit-mask: radial-gradient(circle, transparent 66%, #000 67.5%); mask: radial-gradient(circle, transparent 66%, #000 67.5%); filter: drop-shadow(0 0 0 #1a1036) drop-shadow(0 2px 0 #1a1036); }
-.controles .btn-tactil[data-id="boost"]::after { content: attr(data-pct); position: absolute; left: 50%; bottom: -30px; transform: translateX(-50%); font-family: var(--titulo); font-size: 12px; color: #fff8ec; text-shadow: 0 2px 0 #1a1036; white-space: nowrap; }
 .controles .btn-tactil[data-id="boost"].vacio > span { opacity: .65; }
 .controles .btn-tactil[data-id="boost"].lleno { animation: pklleno .6s infinite alternate; }
 @keyframes pklleno { from { box-shadow: 0 5px 0 #1a1036, 0 0 8px 2px rgba(255,209,102,.6); transform: scale(1); } to { box-shadow: 0 5px 0 #1a1036, 0 0 30px 12px rgba(255,209,102,.95); transform: scale(1.06); } }
@@ -36,9 +35,8 @@ const CSS = `
 .pk-suma.sale { opacity: 0; }
 .pk-suma.pop { animation: pksuma .25s; }
 @keyframes pksuma { 40% { transform: translate(0, -50%) scale(1.25); } }
-@media (min-width: 900px) and (min-height: 760px) { .hud.tema-phuket .hud-izq, .hud.tema-phuket .hud-centro, .hud.tema-phuket .hud-abajo, .hud.tema-phuket .hud-der { zoom: 1.4; } .pk-burbuja { font-size: 19px; max-width: 330px; } .pk-burbuja b { font-size: 13px; } .pk-suma { font-size: 34px; } }
-@media (min-width: 900px) and (min-height: 1000px) { .hud.tema-phuket .hud-izq, .hud.tema-phuket .hud-centro, .hud.tema-phuket .hud-abajo, .hud.tema-phuket .hud-der { zoom: 1.75; } }
-@media (max-width: 420px) { .hud-sol span { font-size: 17px; min-width: 50px; } .hud-item.hud-cocos { font-size: 17px; } .hud-barra.hud-prog { min-width: 130px; } }
+.hud.tema-phuket .hud-izq, .hud.tema-phuket .hud-centro, .hud.tema-phuket .hud-abajo, .hud.tema-phuket .hud-der { zoom: var(--pk-z, 1); }
+@media (min-width: 900px) and (min-height: 760px) { .pk-burbuja { font-size: 20px; max-width: 340px; } .pk-burbuja b { font-size: 13px; } .pk-suma { font-size: 36px; } .pk-num { font-size: 30px; } .grito.peque { font-size: 34px; } }
 `;
 
 export function makeCapa(ctx, camera) {

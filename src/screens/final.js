@@ -36,16 +36,19 @@ export function openFinale(stages, { onClose } = {}) {
         <div><b>${save.totalStars()}/${stages.length * 3}</b> estrellas</div>
       </div>
       <h3>Reparto</h3>
-      <p>Piloto de scooter, capitán de barca, taxista de tuk-tuk, luchador y maquinista: <b>${esc(a)}</b></p>
+      <p>Piloto de scooter, capitán de barca, taxista de tuk-tuk, luchador, fugitivo al volante y maquinista: <b>${esc(a)}</b></p>
       <p>Copiloto, navegante, relaciones públicas y fotógrafo oficial: <b>${esc(b)}</b></p>
       <p>Monos, perros tumbados, turistas despistados y el taxista Zhou de Macao: <b>ellos mismos</b></p>
       <h3>Gracias</h3>
       <p>A Tailandia y a China, por la comida, el calor y la paciencia.</p>
       <p>Al wifi del avión, por no existir.</p>
       <div class="fin-fin">Fin del viaje.<br><small>De momento.</small></div>
+      <div class="fin-cierre"></div>
     </div>
     <div class="fin-botones no-ctrl"></div>`);
   confetti(200);
   setTimeout(() => confetti(160), 2500);
-  $('.fin-botones', s).append(button('Volver al mapa', async () => { await s.close(); onClose && onClose(); }, 'grande'));
+  const back = async () => { await s.close(); onClose && onClose(); };
+  $('.fin-botones', s).append(button('Saltar ⏭', back, 'secundario'));
+  $('.fin-cierre', s).append(button('Volver al mapa ✈', back, 'grande'));
 }

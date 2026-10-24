@@ -87,7 +87,7 @@ function mat(x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = sx, sz = sx) { E.set(
 
 function n3(x, y, z) { return Math.sin(x * 1.7 + y * 0.9) * 0.5 + Math.sin(y * 2.3 - z * 1.3) * 0.3 + Math.sin(z * 2.9 + x * 1.1 + y * 0.4) * 0.2; }
 
-const ROCK = { light: col('#e6d6b6'), warm: col('#d6915a'), dark: col('#5f574f'), wet: col('#3a3a32'), moss: col('#6a9a3c') };
+const ROCK = { light: col('#e6d6b6'), warm: col('#d6915a'), dark: col('#8a7f72'), wet: col('#6e6656'), moss: col('#6a9a3c') };
 const GREENS = ['#2f8f3a', '#3fa34d', '#1f6e30', '#58b04a', '#2a7d3f', '#6cbf4a'].map(col);
 
 // Torre de karst: cilindro deformado con muesca en la línea de flotación, copa de selva, lianas y cueva.
@@ -123,14 +123,15 @@ function karst(x, z, r, h, vr, { canopy = true, lianas = true, cave = false, cav
     const hsh = Math.abs(Math.sin(colI * 12.9898 + rowI * 78.233 + ph) * 43758.5453) % 1;
     const st = Math.sin(colI * 2.1 + ph) + Math.sin(colI * 0.7 + ph * 1.7) * 0.6;
     const caveD = cave ? Math.abs(Math.atan2(Math.sin(ang - caveAng), Math.cos(ang - caveAng))) : 9;
-    if (caveD < 0.32 && yN < 0.22 - caveD * 0.3) c.set('#3a2c24');
-    else if (yN < 0.05) c.copy(ROCK.wet);
+    const hW = yN * h - 2.5; // altura real sobre el agua
+    if (caveD < 0.16 && hW < 3.5 - caveD * 8) c.set('#5a4a3c');
+    else if (hW < 0.6) c.copy(ROCK.wet);
     else if (up > 0.45 || yN > 0.84 || (yN > 0.62 && hsh < 0.22)) c.copy(GREENS[Math.floor(hsh * 4)]);
     else {
       c.copy(ROCK.light);
       if (st > 0.85) c.lerp(ROCK.warm, 0.55 + hsh * 0.3); else if (st < -0.9) c.lerp(ROCK.dark, 0.5 + hsh * 0.3);
       if (bright) c.set('#f2e6cc').lerp(ROCK.warm, st > 0.85 ? 0.4 : 0);
-      else if (yN < 0.2) c.lerp(ROCK.wet, (0.2 - yN) * 2.5);
+      else if (hW < 3.5) c.lerp(ROCK.wet, ((3.5 - hW) / 3.5) * 0.45);
       c.multiplyScalar(0.94 + hsh * 0.12);
     }
     return c;
@@ -678,7 +679,12 @@ export function buildWorld({ scene, rng, vr, quality, makeCharacter }) {
   for (const b of beaches) {
     radial(b.x, b.z, 2, b.rx + 16, '255,0,0', 0.9);
     radial(b.x, b.z, 2, b.rx + 7, '0,0,255', 0.6);
-    radial(b.x, b.z, b.rx * 0.7, b.rx * 1.05 + 1, '0,190,0', 0.8);
+    { // línea de espuma en la orilla (anillo, no disco)
+      const [cx, cz] = toC(b.x, b.z), r1 = b.rx * 1.05 + 2.5, p0 = (b.rx * 0.8) / r1, p1 = (b.rx * 1.0) / r1;
+      const gr = g2.createRadialGradient(cx, cz, 0, cx, cz, r1 * k);
+      gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(Math.max(p0, p1 - 0.08), 'rgba(0,0,0,1)'); gr.addColorStop(p1, 'rgba(0,120,0,1)'); gr.addColorStop(Math.min(1, p1 + 0.08), 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
+      g2.fillStyle = gr; g2.beginPath(); g2.arc(cx, cz, r1 * k, 0, Math.PI * 2); g2.fill();
+    }
   }
   for (const c of calas) { radial(c.x, c.z, 0, CALA_R + 4, '255,0,0', 0.7); radial(c.x, c.z, 0, CALA_R - 2, '0,0,255', 0.15); }
   // bancos de arena sueltos
@@ -690,6 +696,21 @@ export function buildWorld({ scene, rng, vr, quality, makeCharacter }) {
   const mapTex = new THREE.CanvasTexture(cv);
   mapTex.flipY = false; mapTex.colorSpace = THREE.NoColorSpace; mapTex.minFilter = THREE.LinearMipmapLinearFilter; mapTex.magFilter = THREE.LinearFilter; mapTex.generateMipmaps = true;
   mapTex.wrapS = mapTex.wrapT = THREE.ClampToEdgeWrapping;
+
+  // muelle de salida con Nok, la de las barcas
+  const dock = new THREE.Group();
+  {
+    const a = path.at(8), side = 3.9;
+    dock.position.set(a.x + a.nx * side, 0, a.z + a.nz * side); dock.rotation.y = Math.atan2(a.tx, a.tz); scene.add(dock);
+    const wood = new THREE.MeshStandardMaterial({ color: '#b07a45', flatShading: true }), post = new THREE.MeshStandardMaterial({ color: '#7a4f2a', flatShading: true });
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.18, 16), wood); deck.position.set(0.6, 0.9, -3); deck.castShadow = deck.receiveShadow = true; dock.add(deck);
+    for (let z = -10; z <= 4; z += 3.5) for (const x of [-0.5, 1.7]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 3, 5), post); p.position.set(x, -0.3, z); dock.add(p); }
+    for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.6, 7), new THREE.MeshStandardMaterial({ color: ['#2ec4b6', '#ff6f61', '#ffd23f'][i], flatShading: true })); b.position.set(1.2, 1.3, -6 - i * 0.9); dock.add(b); }
+    for (const z of [-10, 4]) { const lx = a.x + a.nx * (side + 0.6) + a.tx * z, lz = a.z + a.nz * (side + 0.6) + a.tz * z; obstacles.push({ x: lx, z: lz, r: 1.4, kind: 'roca' }); }
+    obstacles.push({ x: dock.position.x - a.tx * 3, z: dock.position.z - a.tz * 3, r: 1.4, kind: 'roca' });
+  }
+  const nok = makeCharacter({ skin: '#c68a5e', hair: '#1a1210', shirt: '#ff6f61', pattern: 1, shorts: '#2e4a7d', hairStyle: 2, cap: '#ffd23f', glasses: false });
+  nok.group.position.set(1.1, 0.99, 1.2); nok.group.rotation.y = Math.PI / 2; dock.add(nok.group);
 
   // rejilla espacial para colisiones
   const CELL = 40, grid = new Map();
@@ -774,10 +795,11 @@ export function buildWorld({ scene, rng, vr, quality, makeCharacter }) {
     wingL.instanceMatrix.needsUpdate = wingR.instanceMatrix.needsUpdate = bodyI.instanceMatrix.needsUpdate = true;
     floats.forEach((f, i) => { O.position.set(f.x, sea.heightAt(f.x, f.z), f.z); O.rotation.set(0, 0, 0); O.scale.setScalar(1); O.updateMatrix(); floatI.setMatrixAt(i, O.matrix); });
     floatI.instanceMatrix.needsUpdate = true;
+    nok.pose('wave', t);
   }
 
   return {
-    path, L, gates, calas, obstacles, near, boats, anchored, rocks, monkeyRock,
+    path, L, gates, calas, obstacles, near, boats, anchored, rocks, monkeyRock, dock,
     mapTex, mapRect: { x0, z0, size }, update,
     dispose() { mapTex.dispose(); pg.trunk.dispose(); pg.crown.dispose(); },
   };

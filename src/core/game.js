@@ -338,7 +338,8 @@ async function onFinish(def, mod, r, ghostRec, mode, ghostData) {
   // orden fijo: principal (siguiente o repetir) ancho arriba; luego el resto por parejas
   const nextOk = next && r.win && mode === 'normal' && isUnlocked(next.id);
   if (nextOk) bx.append(button(`Siguiente: ${next.name} ▶`, () => playStage(next.id), 'grande'));
-  bx.append(button('↻ Repetir', () => playStage(id, { mode }), nextOk ? '' : 'grande'));
+  const finalWin = id === 'shanghai' && r.win;
+  bx.append(button('↻ Repetir', () => playStage(id, { mode }), nextOk || finalWin ? '' : 'grande'));
   bx.append(button('🗺 Mapa', () => exitToMap()));
   if (mod.ghost && r.win && r._frames && mode !== 'compi') {
     bx.append(button('📱 Pasa el móvil', () => {
