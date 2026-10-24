@@ -85,6 +85,17 @@ async function jugar(modo) {
   const dedos = new Map(); // id → {x, y}
   const enviar = async (tipo) => {
     const tp = [...dedos.entries()].map(([id, q]) => ({ x: q.x, y: q.y, id }));
+    // Chrome solo suelta dedos con touchEnd (que los suelta todos): se sueltan y se vuelven a poner los que quedan
+    if (tipo === 'soltar') {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      if (tp.length) {
+        // el joystick es relativo: se vuelve a poner en el centro y luego se lleva a su sitio
+        const centro = tp.map((q) => (q.id === 0 ? { ...q, x: 95, y: 700 } : q));
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: centro });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: tp });
+      }
+      return;
+    }
     if (tipo === 'touchEnd' || !tp.length) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     else await cdp.send('Input.dispatchTouchEvent', { type: tipo, touchPoints: tp });
   };
@@ -108,7 +119,7 @@ async function jugar(modo) {
     if (Date.now() - t0 > 240000) { console.log('  ✗ tiempo de prueba agotado'); break; }
     const c = piloto(e);
     // comprobación del signo del giro al principio: izquierda = d baja
-    if (giroIzqOk === null && e.t > 0.3 && e.t < 2) {
+    if (giroIzqOk === null && e.t > 0.3) {
       giroIzqOk = 'midiendo';
       const d0 = e.d;
       if (movil) { dedos.get(0).x = 95 - 56; await enviar('touchMove'); } else { await tecla('ArrowRight', false); await tecla('ArrowLeft', true); }
@@ -125,7 +136,7 @@ async function jugar(modo) {
       let tipo = null;
       if (Math.abs(nx - j.x) > 2) { j.x = nx; tipo = 'touchMove'; }
       if (c.boost && !dedos.has(1)) { dedos.set(1, { ...boostBox }); tipo = 'touchStart'; }
-      else if (!c.boost && dedos.has(1)) { dedos.delete(1); tipo = 'touchMove'; }
+      else if (!c.boost && dedos.has(1)) { dedos.delete(1); tipo = 'soltar'; }
       if (tipo) await enviar(tipo);
     } else {
       const dz = 0.25;

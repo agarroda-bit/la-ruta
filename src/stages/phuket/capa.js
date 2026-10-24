@@ -72,7 +72,7 @@ export function makeCapa(ctx, camera) {
     const w = suma.e.offsetWidth;
     let x = sp.x + Math.min(110, innerWidth * 0.2);
     if (x + w > innerWidth - 10) x = sp.x - Math.min(110, innerWidth * 0.2) - w;
-    suma.e.style.left = x + 'px'; suma.e.style.top = Math.max(150, sp.y - 70) + 'px';
+    suma.e.style.left = x + 'px'; suma.e.style.top = Math.max(150, sp.y + 30) + 'px';
     if (suma.t > 1.3) { suma.e.classList.add('sale'); }
     if (suma.t > 1.7) { suma.e.remove(); suma = null; }
   }

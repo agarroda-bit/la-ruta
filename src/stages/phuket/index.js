@@ -12,8 +12,8 @@ import { makeSfx } from './sonidos.js';
 import { makeCapa } from './capa.js';
 
 const LG = 3200;           // metros de salida a meta
-const TIME_LIMIT = 120;    // segundos de sol
-const T_MARGEN = 16;       // margen para la 2ª estrella (y la 3ª con cocos)
+const TIME_LIMIT = 123;    // segundos de sol
+const T_MARGEN = 18;       // margen para la 2ª estrella (y la 3ª con cocos)
 const COCO_3 = 0.65;       // fracción de cocos para la 3ª estrella
 const MK0 = S0 + 0.775 * LG, MK_GATES = 7, MK_GAP = 22, MK1 = MK0 + MK_GATES * MK_GAP; // mercado nocturno
 const V_BASE = 26, V_TURBO = 37, V_FRENO = 7, V_ARENA = 16;
@@ -364,7 +364,7 @@ export default {
       const steer = clamp(inp.x, -1, 1);
       const braking = inp.down('brake') || inp.y < -0.4;
       const wantBoost = inp.down('boost') && !braking;
-      if (!wantBoost) st.boostLock = false;
+      if (!wantBoost || st.fuel > 0.35) st.boostLock = false; // si lo mantienes pulsado, vuelve solo al recargarse
       const canBoost = wantBoost && !st.boostLock && st.fuel > 0.01;
       if (canBoost && !st.boosting) { sfx.turbo(); audio.sfx('boost');  }
       st.boosting = canBoost;
