@@ -7,17 +7,20 @@ const CSS = `
 .bkk-mapa { position: absolute; top: calc(10px + var(--safe-t)); left: calc(10px + var(--safe-l)); width: 118px; height: 118px; border-radius: 50%;
   border: 3px solid #00e5ff; box-shadow: 0 0 16px rgba(0,229,255,.55), 0 4px 0 #1a1036; background: #1a1030; overflow: hidden; }
 .bkk-mapa canvas { width: 100%; height: 100%; display: block; }
-.bkk-pips { position: absolute; top: calc(134px + var(--safe-t)); left: calc(10px + var(--safe-l)); width: 118px; display: flex; gap: 4px; align-items: center; font-size: 10px; letter-spacing: .5px; }
+.bkk-pips { background: rgba(20,8,40,.62); border-radius: 10px; padding: 3px 6px; position: absolute; top: calc(134px + var(--safe-t)); left: calc(10px + var(--safe-l)); width: 118px; display: flex; gap: 4px; align-items: center; font-size: 10px; letter-spacing: .5px; }
 .bkk-pips i { flex: 1; height: 10px; border-radius: 6px; background: rgba(26,16,54,.75); border: 2px solid #ff3fa4; overflow: hidden; position: relative; }
 .bkk-pips i b { position: absolute; inset: 0; background: linear-gradient(90deg, #ff3fa4, #ffd1ec); transform-origin: left; transform: scaleX(0); box-shadow: 0 0 8px #ff3fa4; }
 .bkk-pips span { color: #ffd1ec; text-shadow: 0 0 6px #ff3fa4; margin-right: 2px; }
-.bkk-reloj { position: absolute; top: calc(8px + var(--safe-t)); left: 50%; transform: translateX(-50%); text-align: center; line-height: 1; }
+.bkk-reloj { position: absolute; top: calc(8px + var(--safe-t)); left: 50%; transform: translateX(-50%); text-align: center; line-height: 1; background: rgba(20,8,40,.62); border-radius: 14px; padding: 4px 12px 5px; }
 .bkk-reloj b { display: block; font-size: 30px; color: #fff; text-shadow: 0 0 10px #ff3fa4, 0 0 2px #ff3fa4, 0 3px 0 #1a1036; }
 .bkk-reloj small { font-size: 10px; letter-spacing: 2px; color: #ffb3e0; }
 @media (max-width: 480px) { .bkk-reloj small { letter-spacing: 1px; } .bkk-reloj small::after { content: ''; } }
+@media (max-width: 480px) { .bkk-reloj small { display: none; } .bkk-reloj b { font-size: 26px; } }
+.bkk-reloj.punta { box-shadow: 0 0 16px rgba(255,159,28,.8); border: 2px solid #ff9f1c; }
+.bkk-reloj.punta small { color: #ffcf8a; }
 .bkk-reloj.aviso b { color: #ff5c5c; animation: bkkLate .5s infinite alternate; }
 @keyframes bkkLate { to { transform: scale(1.12); } }
-.bkk-dinero { position: absolute; top: calc(12px + var(--safe-t)); right: calc(70px + var(--safe-r)); text-align: right; line-height: 1.05; }
+.bkk-dinero { position: absolute; top: calc(10px + var(--safe-t)); right: calc(68px + var(--safe-r)); text-align: right; line-height: 1.05; background: rgba(20,8,40,.62); border-radius: 12px; padding: 3px 9px 4px; }
 .bkk-dinero b { font-size: clamp(20px, min(3.6vh, 5.6vw), 38px); color: #5dff9b; text-shadow: 0 0 8px rgba(93,255,155,.7), 0 3px 0 #1a1036; }
 .bkk-dinero small { display: block; font-size: clamp(10px, min(1.8vh, 2.8vw), 17px); color: #c9f7ff; margin-top: 2px; }
 .bkk-plus { position: absolute; top: calc(12px + var(--safe-t) + clamp(40px, 6.5vh, 70px)); right: calc(70px + var(--safe-r)); font-size: clamp(14px, 2.2vh, 22px); color: #ffd23f;
@@ -33,6 +36,10 @@ const CSS = `
 .bkk-cobro .k-sub { display: inline-block; margin-top: 8px; background: #1a1036; color: #fff; border-radius: 99px; padding: 3px 12px; font-size: clamp(12px, 1.8vh, 17px); }
 .bkk-banner { position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%); white-space: nowrap; font-size: clamp(20px, 3.6vh, 36px); color: #ffd23f; background: #1a1036;
   border: 3px solid #ffd23f; border-radius: 16px; padding: 6px 16px; box-shadow: 0 0 20px rgba(255,210,63,.6), 0 5px 0 #000; opacity: 0; }
+.bkk-pop { position: absolute; left: 50%; top: 47%; transform: translate(-50%, -50%); white-space: nowrap; font-size: clamp(26px, 4.6vh, 46px); color: #ffd23f;
+  -webkit-text-stroke: 2px #1a1036; text-shadow: 0 4px 0 #1a1036, 0 0 16px currentColor; opacity: 0; }
+.bkk-pop.on { animation: bkkPopT .8s cubic-bezier(.2,1.5,.4,1) both; }
+@keyframes bkkPopT { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.4); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); } 30% { transform: translate(-50%, -50%) scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -80%); } }
 .bkk-banner.on { animation: bkkCobro 2.4s cubic-bezier(.2,1.4,.4,1) both; }
 .bkk-carta .c-prisa { display: none; font-size: 11px; color: #1a1036; background: #ffd23f; border-radius: 99px; padding: 1px 7px; margin-left: 4px; }
 .bkk-carta.rush .c-prisa { display: inline-block; animation: bkkLate .5s infinite alternate; }
@@ -64,10 +71,15 @@ const CSS = `
   padding: 3px 8px; font-family: var(--texto); font-weight: 800; font-size: 13px; white-space: nowrap; box-shadow: 0 3px 0 #1a1036; opacity: 0; transition: opacity .2s; }
 .bkk-local.on { opacity: 1; }
 .bkk-local.poli { background: #9fe8ff; }
-.bkk-pista { position: absolute; left: 50%; bottom: calc(150px + var(--safe-b)); transform: translateX(-50%); background: rgba(20,8,40,.8); border: 2px solid #00e5ff;
-  border-radius: 14px; padding: 6px 12px; font-family: var(--texto); font-weight: 800; font-size: 15px; text-align: center; max-width: 86vw; opacity: 0; transition: opacity .3s; }
+.bkk-pista { position: absolute; left: 50%; bottom: calc(150px + var(--safe-b)); transform: translateX(-50%); background: rgba(14,4,32,.96); border: 3px solid #00e5ff; color: #fff;
+  box-shadow: 0 0 18px rgba(0,229,255,.5), 0 4px 0 #000; text-shadow: 0 1px 0 #000;
+  border-radius: 14px; padding: 8px 14px; font-family: var(--texto); font-weight: 800; font-size: clamp(15px, 2.1vh, 21px); text-align: center; max-width: 86vw; opacity: 0; transition: opacity .3s; }
 .bkk-pista.on { opacity: 1; }
-@media (max-width: 600px) { .bkk-pista { bottom: calc(262px + var(--safe-b)); font-size: 14px; } .bkk-burbuja { font-size: 13px; } }
+@media (max-width: 600px) { .bkk-pista { bottom: auto; top: calc(268px + var(--safe-t)); font-size: 14px; } .bkk-burbuja { font-size: 13px; } }
+.bkk-cuenta { position: absolute; top: calc(162px + var(--safe-t)); left: calc(10px + var(--safe-l)); background: rgba(20,8,40,.62); border-radius: 10px; padding: 3px 8px;
+  font-size: clamp(11px, 1.8vh, 17px); color: #c9f7ff; white-space: nowrap; }
+.bkk-cuenta.pop { animation: bkkPop .35s; }
+@media (min-width: 900px) { .bkk-cuenta { top: calc(218px + var(--safe-t)); } }
 .btn-tactil[data-id="turbo"] { background: conic-gradient(#ff3fa4 calc(var(--carga, 0) * 1%), #5a2a55 0) !important; }
 .btn-tactil[data-id="drift"] { box-shadow: 0 5px 0 var(--tinta), 0 0 18px rgba(0,229,255,.6); }
 .tema-bangkok .grito { text-shadow: 0 0 14px #ff3fa4, 0 4px 0 #1a1036; }
@@ -96,13 +108,15 @@ export function createHud(ctx, mm) {
     <div class="bkk-mapa"><canvas></canvas></div>
     <div class="bkk-pips"><span>TURBO</span><i><b></b></i><i><b></b></i><i><b></b></i></div>
     <div class="bkk-reloj"><b>2:30</b><small>TURNO</small></div>
-    <div class="bkk-dinero"><b>0 ฿</b><small>🛺 0 entregados</small></div>
+    <div class="bkk-dinero"><b>0 ฿</b></div>
+    <div class="bkk-cuenta">🛺 0 entregados</div>
     <div class="bkk-carta oculta"><img alt=""><div class="c-txt"><div class="c-nom"></div><span class="c-prisa">⚡ PRISA ×2</span><div class="c-dest"></div><div class="c-barra"><i></i></div></div><div class="c-seg"></div></div>
     <div class="bkk-burbuja"><img alt=""><div><span class="b-quien"></span><span class="b-txt"></span></div></div>
     <div class="bkk-local"></div>
     <div class="bkk-plus"></div>
     <div class="bkk-cobro"><div class="k-num"></div><div class="k-est"></div><div class="k-sub"></div></div>
     <div class="bkk-banner"></div>
+    <div class="bkk-pop"></div>
     <div class="bkk-pista"></div>`;
   (ctx.hud.el || document.body).appendChild(root);
   const $ = (s) => root.querySelector(s);
@@ -122,7 +136,9 @@ export function createHud(ctx, mm) {
       if (n === lastMoney && count === api._c) return;
       const up = n > lastMoney && lastMoney >= 0;
       lastMoney = n; api._c = count;
-      dinero.innerHTML = `<b>${n} ฿</b><small>🛺 ${count} entregado${count === 1 ? '' : 's'}</small>`;
+      dinero.innerHTML = `<b>${n} ฿</b>`;
+      const cu = root.querySelector('.bkk-cuenta'), txt = `🛺 ${count} entregado${count === 1 ? '' : 's'}`;
+      if (cu.textContent !== txt) { cu.textContent = txt; cu.classList.remove('pop'); void cu.offsetWidth; cu.classList.add('pop'); }
       if (up) { dinero.classList.remove('pop'); void dinero.offsetWidth; dinero.classList.add('pop'); }
     },
     turbo(v) {
@@ -167,6 +183,8 @@ export function createHud(ctx, mm) {
     local(text, cls = '') { local.textContent = text; local.className = 'bkk-local on ' + cls; localT = 2.6; },
     localPos(x, y, vis) { local.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`; if (!vis) local.classList.remove('on'); },
     get localOn() { return localT > 0; },
+    pop(text, color = '#ffd23f') { const e = root.querySelector('.bkk-pop'); e.textContent = text; e.style.color = color; e.classList.remove('on'); void e.offsetWidth; e.classList.add('on'); },
+    rushHour(on) { reloj.classList.toggle('punta', on); reloj.querySelector('small').textContent = on ? 'HORA PUNTA' : 'TURNO'; },
     rush(on) { carta.classList.toggle('rush', !!on); },
     plus(text) { const e = root.querySelector('.bkk-plus'); e.textContent = text; e.classList.remove('on'); void e.offsetWidth; e.classList.add('on'); },
     cobro(amount, rating, sub) {
@@ -184,7 +202,7 @@ export function createHud(ctx, mm) {
       if (pistaT > 0) { pistaT -= dt; if (pistaT <= 0) pista.classList.remove('on'); }
     },
     // minimapa: route = [[x,z],...] desde el jugador hasta el objetivo
-    map(px, pz, yaw, route, target, color, cars) {
+    map(px, pz, yaw, route, target, color, cars, lans) {
       const W = cv.clientWidth || 118, dpr = Math.min(2, devicePixelRatio || 1), size = Math.round(W * dpr);
       if (cv.width !== size) { cv.width = size; cv.height = size; }
       const view = 62; // radio visible en unidades del mundo
@@ -197,6 +215,7 @@ export function createHud(ctx, mm) {
       g.translate(size / 2, size / 2); g.rotate(th); g.scale(sc, sc); g.translate(-X(px), -X(pz));
       g.drawImage(mm.canvas, 0, 0);
       if (cars) { g.fillStyle = 'rgba(255,255,255,.55)'; for (const c of cars) { g.fillRect(X(c.x) - 2, X(c.z) - 2, 4, 4); } }
+      if (lans) { g.fillStyle = '#ffcf3a'; for (const l of lans) if (l.on) { g.beginPath(); g.arc(X(l.x), X(l.z), 4, 0, 7); g.fill(); } }
       if (route && route.length) {
         g.lineJoin = 'round'; g.lineCap = 'round';
         g.strokeStyle = color; g.globalAlpha = 0.35; g.lineWidth = 14; g.beginPath(); g.moveTo(X(px), X(pz));

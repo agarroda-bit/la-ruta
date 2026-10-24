@@ -283,7 +283,7 @@ export default {
       st.phase = 'board'; st.boardT = 0; st.vx = st.vz = 0; st.speed = 0;
       audio.sfx('bell'); ctx.vibrate(25);
       if (st.mode === 'pick') {
-        ctx.shout('¡SUBE!', { size: 'peque', color: '#ff3fa4' });
+        hudB.pop('¡SUBE!', '#ff3fa4');
         st.jumpers = st.waiting.map((w, k) => ({ ...w, from: w.obj.position.clone(), seat: k }));
         st.waiting = [];
       } else {
@@ -334,13 +334,14 @@ export default {
         // cobrar
         const margin = Math.max(0, st.tripLeft);
         const fare = 60 + Math.round(st.tripLen * 0.25);
-        const tip = Math.max(0, Math.round(margin * 6) - st.tripCrash * 8);
+        const tip = Math.max(0, Math.round(margin * 6) - st.tripCrash * 8) * (st.rushHour ? 2 : 1);
         const rating = margin >= 12 ? 3 : margin >= 5 ? 2 : 1;
         const mult = st.rush ? 2 : 1;
         st.money += (fare + tip) * mult; st.delivered++;
         st.bestMargin = Math.max(st.bestMargin, margin);
         audio.sfx('coin'); setTimeout(() => audio.sfx('coin', { pitch: 1.2 }), 120); setTimeout(() => audio.sfx('star', { pitch: 1 + rating * 0.15 }), 260);
-        hudB.cobro((fare + tip) * mult, rating, st.rush ? '¡PRISA! ×2' : (tip > 0 ? `propina ${tip} ฿` : 'sin propina'));
+        hudB.cobro((fare + tip) * mult, rating, st.rush ? '¡PRISA! ×2' : st.rushHour ? `¡HORA PUNTA! propina ${tip} ฿` : (tip > 0 ? `propina ${tip} ฿` : 'sin propina'));
+        ctx.confetti(rating === 3 ? 110 : 70, ['#ff3fa4', '#00e5ff', '#ffd23f', '#5dff9b', '#c77dff', '#ffffff']);
         const wp = tuk.group.position.clone(); wp.y = 1.5;
         sparks.emit(40, wp, { colors: ['#ffd23f', '#fff3b0', '#5dff9b'], vel: { x: 0, y: 6, z: 0 }, velSpread: 6, life: 1.0, gravity: -9, size: 0.4 });
         if (rating === 3) engine.slowmo(0.5, 0.35);
@@ -348,7 +349,7 @@ export default {
         if (margin > 20) ctx.sticker('propina');
         if (st.delivered === 5) ctx.sticker('taxista');
         st.rush = false; hudB.rush(false);
-        st.leaving.push(...st.jumpers.map((j) => ({ obj: j.obj, ch: j.ch, life: 3.5 })));
+        st.leaving.push(...st.jumpers.map((j) => ({ obj: j.obj, ch: j.ch, life: 5, wave: true })));
         st.jumpers = [];
         st.cur = null; st.target = null; st.path = [];
         tuk.setBusy(false);
@@ -359,7 +360,7 @@ export default {
       const t = st.cur;
       say(t, t.late, 3500);
       audio.sfx('lose', { vol: 0.5 });
-      ctx.shout('¡SE BAJA!', { size: 'peque', color: '#ff5c5c' });
+      hudB.pop('¡SE BAJA!', '#ff5c5c');
       clearChars(st.seated);
       looksOf(t).forEach((lk, k) => {
         const ch = ctx.makeCharacter(lk);
@@ -378,7 +379,7 @@ export default {
       if (st.phase === 'end') return;
       st.phase = 'end'; st.endT = 0;
       if (early && st.left > 0) { const bonus = Math.round(st.left * 2); st.money += bonus; ctx.toast(`¡Todos los turistas! Bonus +${bonus} ฿`, 2600); }
-      ctx.shout('¡FIN DEL TURNO!', { color: '#ff3fa4', ms: 1800 });
+      hudB.banner('¡FIN DEL TURNO!', '#ff3fa4');
       audio.sfx('bell'); engine.slowmo(1.2, 0.3);
       if (st.cur && st.mode === 'ride') hudB.say(st.cur.portrait, st.cur.name, '¿Ya? ¡Pero si casi llegábamos!', 2500);
       hudB.card(null);
@@ -392,7 +393,7 @@ export default {
       E.terminado = true; E.estrellas = stars;
       ctx.finish({
         win, stars, time: SHIFT - st.left, score: st.money + d * 50,
-        stats: [['Turistas', `${d}`], ['Baht', `${st.money} ฿`], ['Tiempo sobrante', `${dec(st.bestMargin)} s`], ['Mejor derrape', `${dec(st.driftBest)} s`], ['Choques', st.crashes], ['Farolillos', st.lanterns]],
+        stats: [['Turistas', `${d}`], ['Baht', `${st.money} ฿`], ['Sobrante', `${dec(st.bestMargin)}\u00a0s`], ['Derrape', `${dec(st.driftBest)}\u00a0s`], ['Choques', st.crashes], ['Farolillos', st.lanterns]],
         moreStats: { turistas: d },
         shareText: `${d} turistas y ${st.money} ฿ en el tuk-tuk de Bangkok`,
         title: win ? (stars === 3 ? '¡Taxista del año!' : '¡Turno completado!') : 'Somchai no está contento…',
@@ -422,7 +423,7 @@ export default {
           if (imp > 8 && st.crashCd <= 0) {
             st.crashes++; st.crashCd = 1; if (st.mode === 'ride' && st.cur) st.tripCrash++;
             compiSay(COMPI.crash);
-            if (imp > 13) ctx.shout('¡PUM!', { size: 'peque', color: '#ffd23f' });
+            if (imp > 13) hudB.pop('¡PUM!', '#ffd23f');
           }
         }
       }
@@ -480,7 +481,7 @@ export default {
     const NL = 30;
     const lanGeo = new THREE.SphereGeometry(0.42, 8, 6); lanGeo.scale(1, 1.3, 1);
     const lanMesh = new THREE.InstancedMesh(lanGeo, new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false }), NL);
-    const lanHalo = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshBasicMaterial({ map: blob, color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), NL);
+    const lanHalo = new THREE.InstancedMesh(new THREE.PlaneGeometry(3.4, 3.4), new THREE.MeshBasicMaterial({ map: blob, color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), NL);
     lanMesh.frustumCulled = lanHalo.frustumCulled = false;
     scene.add(lanMesh, lanHalo);
     const lans = [];
@@ -497,12 +498,14 @@ export default {
     }
     const lanObj = new THREE.Object3D();
     function updateLanterns(dt) {
+      if (!st.lanTold && st.phase === 'drive') { for (const l of lans) if (l.on && Math.hypot(l.x - st.x, l.z - st.z) < 32) { st.lanTold = true; ctx.toast('🏮 ¡Farolillos de la suerte! Pasa por encima: +10 ฿ y turbo', 3600); break; } }
       for (let k = 0; k < NL; k++) {
         const l = lans[k];
         if (l.on) {
           if (st.phase === 'drive' && Math.abs(l.x - st.x) < 2.6 && Math.abs(l.z - st.z) < 2.6 && Math.hypot(l.x - st.x, l.z - st.z) < 2.6) {
             l.on = false; l.t = 20;
-            st.money += 10; st.lanterns++; st.turbo = Math.min(1, st.turbo + 0.12);
+            st.money += 10; st.lanterns++; st.turbo = Math.min(1, st.turbo + 0.12); hudB.pop('🏮 +10 ฿', '#ffcf3a');
+            if (st.lanterns === 1) compiSay(['¡Farolillo de la suerte! ¡Dinero y turbo!'], true);
             sparks.emit(18, tmpV.set(l.x, 1.6, l.z), { colors: ['#ffcf3a', '#ff3b3b', '#fff3b0'], vel: { x: 0, y: 4, z: 0 }, velSpread: 6, life: 0.7, gravity: -6, size: 0.35 });
             audio.sfx('coin', { pitch: 1.3 + (st.lanterns % 4) * 0.08 });
             hudB.plus('+10 ฿ 🏮');
@@ -554,7 +557,7 @@ export default {
             if (st.turbo >= 0.33) {
               st.turbo -= 0.33; st.boostT = Math.min(3, Math.max(0, st.boostT) + 1.3);
               audio.sfx('boost'); engine.shake(0.25); ctx.vibrate(30);
-              ctx.shout('¡TURBO!', { size: 'peque', color: '#ff3fa4', ms: 700 });
+              hudB.pop('¡TURBO!', '#ff3fa4');
               compiSay(COMPI.turbo);
             } else { audio.sfx('click', { pitch: 0.6 }); hudB.hint(input.lastDevice === 'touch' ? '¡Sin turbo! Derrapa para cargarlo.' : '¡Sin turbo! Derrapa (ESPACIO) para cargarlo.', 1800); }
           }
@@ -584,7 +587,7 @@ export default {
             st.driftT += dt; st.driftGap = 0;
             st.turbo = Math.min(1, st.turbo + dt * 0.3);
             st.driftBest = Math.max(st.driftBest, st.driftT);
-            if (st.driftT >= 3 && !st.driftSt) { st.driftSt = true; ctx.sticker('derrape'); ctx.shout('¡REY DEL DERRAPE!', { size: 'peque', color: '#00e5ff' }); }
+            if (st.driftT >= 3 && !st.driftSt) { st.driftSt = true; ctx.sticker('derrape'); hudB.pop('¡REY DEL DERRAPE!', '#00e5ff'); }
             if (st.driftT > 1.2 && !st.driftSaid) { st.driftSaid = true; compiSay(COMPI.drift); }
           } else if (st.driftT > 0) {
             st.driftGap += dt;
@@ -592,7 +595,7 @@ export default {
               if (st.driftT > 0.9) {
                 st.boostT = Math.max(st.boostT, 0.45 + Math.min(st.driftT, 2.5) * 0.3);
                 audio.sfx('boost', { vol: 0.6, pitch: 1.3 });
-                ctx.shout(st.driftT > 2 ? '¡SUPER MINI TURBO!' : '¡MINI TURBO!', { size: 'peque', color: st.driftT > 2 ? '#ff3fa4' : '#00e5ff', ms: 700 });
+                hudB.pop(st.driftT > 2 ? '¡SUPER MINI TURBO!' : '¡MINI TURBO!', st.driftT > 2 ? '#ff3fa4' : '#00e5ff');
               }
               st.driftT = 0; st.driftGap = 0; st.driftSaid = false;
             }
@@ -612,6 +615,14 @@ export default {
               if (st.chatT <= 0 && !hudB.talking) { st.chatT = 8 + Math.random() * 3; const t = st.cur; say(t, t.ride[st.chatI++ % t.ride.length], 3400); }
             }
           } else st.hurrySaid = false;
+          if (st.left <= 40 && !st.rushHour) {
+            // momento cumbre: el último tramo es HORA PUNTA (propinas dobles, más tráfico y más rápido)
+            st.rushHour = true;
+            hudB.banner('🔥 ¡HORA PUNTA! PROPINAS DOBLES', '#ff9f1c'); hudB.rushHour(true);
+            audio.sfx('horn'); setTimeout(() => audio.sfx('horn', { pitch: 1.3 }), 180); engine.shake(0.3);
+            for (const c of traffic.cars) c.max *= 1.3;
+            compiSay(['¡Hora punta! ¡Ahora sí que hay ambiente!', '¡Propinas dobles, {0}! ¡A tope!'], true);
+          }
           if (st.left <= 0) endShift(false);
         } else if (st.phase === 'board') {
           st.boardT += dt;
@@ -701,7 +712,10 @@ export default {
         for (let k = st.leaving.length - 1; k >= 0; k--) {
           const l = st.leaving[k]; l.life -= dt;
           if (l.run) { l.ch.pose('run', time); l.obj.position.x += Math.sin(l.obj.rotation.y) * 4 * dt; l.obj.position.z += Math.cos(l.obj.rotation.y) * 4 * dt; }
-          else l.ch.pose(l.life > 1.5 ? 'cheer' : 'wave', time);
+          else {
+            l.ch.pose(l.life > 3 ? 'cheer' : 'wave', time);
+            if (l.wave) l.obj.rotation.y = Math.atan2(st.x - l.obj.position.x, st.z - l.obj.position.z); // se despide mirando al tuk-tuk
+          }
           if (l.life < 0.4) l.obj.scale.setScalar(Math.max(0.01, l.life / 0.4));
           if (l.life <= 0) { scene.remove(l.obj); disposeTree(l.obj); st.leaving.splice(k, 1); }
         }
@@ -758,7 +772,8 @@ export default {
           const want = st.speed > 4 && Math.abs(angleDiff(st.yaw, velYaw)) < 1.2 ? st.yaw + angleDiff(st.yaw, velYaw) * 0.45 : st.yaw;
           camYaw += angleDiff(camYaw, want) * Math.min(1, dt * (st.phase === 'board' ? 2 : 4.2));
           const tall = innerWidth < innerHeight; // en vertical el campo horizontal es estrecho: más lejos
-          const back = (tall ? 8.8 : 6.6) + Math.min(st.speed, 32) * 0.07, up = (tall ? 3.8 : 3.1) + Math.min(st.speed, 32) * 0.02;
+          const baseBack = tall ? 10 : 7; // distancia mínima FIJA: nunca más cerca
+          const back = baseBack + Math.min(st.speed, 32) * 0.06, up = (tall ? 4.4 : 3.3) + Math.min(st.speed, 32) * 0.02;
           let bx = -Math.sin(camYaw) * back, bz = -Math.cos(camYaw) * back;
           // que la cámara no se meta dentro de los edificios
           // si hay un muro entre cámara y tuk-tuk, la cámara SUBE (casi no se acerca)
@@ -770,13 +785,13 @@ export default {
           camPos.set(st.x + bx, up + st.camLift * 7, st.z + bz);
           camera.position.lerp(camPos, 1 - Math.exp(-dt * 8));
           // distancia mínima: nunca encima del tuk-tuk
-          const hx = camera.position.x - st.x, hz = camera.position.z - st.z, hd = Math.hypot(hx, hz), minD = tall ? 8 : 6.2;
+          const hx = camera.position.x - st.x, hz = camera.position.z - st.z, hd = Math.hypot(hx, hz), minD = baseBack;
           if (hd < minD) { const ux = hd > 0.01 ? hx / hd : -Math.sin(camYaw), uz = hd > 0.01 ? hz / hd : -Math.cos(camYaw); camera.position.x = st.x + ux * minD; camera.position.z = st.z + uz * minD; }
           camLook.set(st.x + Math.sin(camYaw) * 5, 1.55, st.z + Math.cos(camYaw) * 5);
           lookCur.lerp(camLook, 1 - Math.exp(-dt * 12));
           camera.lookAt(lookCur);
         }
-        const fovT = 64 + Math.min(st.speed, 34) * 0.32 + (st.boostT > 0 ? 7 : 0);
+        const fovT = (innerWidth < innerHeight ? 70 : 64) + Math.min(st.speed, 34) * 0.3 + (st.boostT > 0 ? 7 : 0);
         camera.fov = damp(camera.fov, fovT, 4, dt); camera.updateProjectionMatrix();
         moon.position.set(st.x - 30, 60, st.z - 18); moon.target.position.set(st.x, 0, st.z);
         sky.position.copy(camera.position);
@@ -798,7 +813,7 @@ export default {
         rainSnd.set({ vol: wetNow ? 0.11 : 0 });
         const dm = Math.hypot(st.x - mid(2), st.z - mid(4));
         crowdSnd.set({ vol: clamp(1 - dm / 50, 0, 1) * 0.12 });
-        audio.intensity(st.boostT > 0 ? 1 : 0.5);
+        audio.intensity(st.boostT > 0 || st.rushHour ? 1 : 0.5);
 
         // ── HUD ──
         hudB.clock(st.left);
@@ -808,7 +823,7 @@ export default {
         if (!(st._mt > 0)) {
           st._mt = 1 / 30;
           const tgt = st.target ? [st.target.x, st.target.z] : null;
-          hudB.map(st.x, st.z, camYaw, st.path, tgt, st.mode === 'ride' ? '#00e5ff' : '#ff3fa4', q.particles >= 0.7 ? traffic.cars : null);
+          hudB.map(st.x, st.z, camYaw, st.path, tgt, st.mode === 'ride' ? '#00e5ff' : '#ff3fa4', q.particles >= 0.7 ? traffic.cars : null, lans);
         } else st._mt -= rdt;
 
         // estado para pruebas

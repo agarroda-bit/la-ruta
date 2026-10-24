@@ -80,7 +80,7 @@ for (const pass of passes) {
 
   // ── bucle de conducción ──
   const t0 = Date.now();
-  let stuck = 0, reverseT = 0, last = null, fps = [], shotAction = false, shotRide = false, lastLog = 0, turboT = 0, lastDelivered = 0;
+  let shotPunta = false, stuck = 0, reverseT = 0, last = null, fps = [], shotAction = false, shotRide = false, lastLog = 0, turboT = 0, lastDelivered = 0;
   let res = null;
   while (Date.now() - t0 < 240000) {
     const s = await page.evaluate(() => ({ ...window.__ruta.etapa, inp: [window.__ruta.input.x.toFixed(2), window.__ruta.input.down('brake'), window.__ruta.input.down('drift'), window.__ruta.input.down('turbo')].join(','), jugador: { ...window.__ruta.etapa.jugador }, guia: { ...window.__ruta.etapa.guia }, fps: window.__ruta.engine.fps, res: !!document.querySelector('.resultados') }));
@@ -106,6 +106,7 @@ for (const pass of passes) {
     // turbo en recta si hay carga
     if (s.turbo >= 0.34 && Math.abs(diff) < 0.12 && dist > 30 && now - turboT > 2500) { turboT = now; await hold('turbo', true); await sleep(60); await hold('turbo', false); }
     if (shots && !shotAction && s.tiempo < 135) { shotAction = true; await page.screenshot({ path: `pruebas/capturas/bangkok-${tag}-accion.png` }); }
+    if (shots && !shotPunta && s.tiempo < 38) { shotPunta = true; await page.screenshot({ path: `pruebas/capturas/bangkok-${tag}-horapunta.png` }); }
     if (shots && !shotRide && s.modo === 'ride' && s.viaje < s.viajeMax - 4) { shotRide = true; await page.screenshot({ path: `pruebas/capturas/bangkok-${tag}-viaje.png` }); }
     if (s.entregados !== lastDelivered) { if (shots && lastDelivered === 0) { await sleep(450); await page.screenshot({ path: `pruebas/capturas/bangkok-${tag}-cobro.png` }); } lastDelivered = s.entregados; console.log(`  entregado #${s.entregados} · ${s.dinero} ฿ · quedan ${s.tiempo.toFixed(0)} s`); }
     if (now - lastLog > 15000) { lastLog = now; console.log(`  t=${(150 - s.tiempo).toFixed(0)}s modo=${s.modo} turista=${s.turista} v=${p.v.toFixed(1)} fps=${s.fps.toFixed(0)} entregados=${s.entregados} fallidos=${s.fallidos}`); }
