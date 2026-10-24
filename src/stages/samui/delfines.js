@@ -17,7 +17,7 @@ function buildDolphin() {
   return { group: g, tail };
 }
 
-export function createDolphins(scene, { s0, length = 230, speed = 13.5, lanes = [-8, -1, 7] }) {
+export function createDolphins(scene, { s0, length = 230, speed = 15, lanes = [-6, 0, 6] }) {
   const pod = lanes.map((lane, i) => { const d = buildDolphin(); d.group.visible = false; scene.add(d.group); return { ...d, lane, ph: i * 0.37, given: false, wasAir: false, x: 0, y: -3, z: 0 }; });
   const state = { on: false, done: false, s: s0, t: 0, given: 0 };
   return {
@@ -26,12 +26,13 @@ export function createDolphins(scene, { s0, length = 230, speed = 13.5, lanes = 
     update(dt, t, boat, path, sea, cb) {
       if (state.done) return;
       if (!state.on) {
-        if (boat.s > s0 - 75 && boat.s < s0 + 40) { state.on = true; state.s = s0; cb.start(); pod.forEach((d) => { d.group.visible = true; }); }
+        if (boat.s > s0 - 75 && boat.s < s0 + 80 && Math.abs(boat.lat) < 22) { state.on = true; state.s = boat.s + 26; cb.start(); pod.forEach((d) => { d.group.visible = true; }); }
         else return;
       }
       state.t += dt;
-      state.s += speed * dt;
-      const ending = state.s > s0 + length || state.t > 26;
+      // nadan a la par de la barca y se van quedando atrás poco a poco: siempre los alcanzas
+      state.s = Math.max(state.s - 2 * dt, boat.s + 26 - state.t * 4.5);
+      const ending = state.t > 14;
       let anyVisible = false;
       for (const d of pod) {
         const a = path.at(state.s + d.ph * 6);
@@ -52,7 +53,7 @@ export function createDolphins(scene, { s0, length = 230, speed = 13.5, lanes = 
         if (air !== d.wasAir && !ending) cb.splash(x, h, z);
         d.wasAir = air;
         if (y > h - 1.4) anyVisible = true;
-        if (!d.given && !ending && y > h - 0.6 && Math.hypot(boat.x - x, boat.z - z) < 7) { d.given = true; state.given++; cb.gift(d); }
+        if (!d.given && !ending && y > h - 1.7 && Math.hypot(boat.x - x, boat.z - z) < 10) { d.given = true; state.given++; cb.gift(d); }
       }
       if (ending && !anyVisible) { state.done = true; pod.forEach((d) => { d.group.visible = false; }); }
     },

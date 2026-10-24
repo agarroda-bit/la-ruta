@@ -7,8 +7,8 @@ import { SKINS, HAIRS, SHIRTS } from '../../core/chars.js';
 import { buildBoat } from './barca.js';
 
 export const CHANNEL = 28;     // media anchura del canal libre
-export const CALA_R = 24;      // radio del anillo de rocas de una cala
-export const CALA_OFF = 64;    // distancia del centro de la cala al recorrido
+export const CALA_R = 27;      // radio del anillo de rocas de una cala
+export const CALA_OFF = 68;    // distancia del centro de la cala al recorrido
 const GAP = 0.8;               // ángulo de las bocas de la cala respecto al canal
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const col = (c) => new THREE.Color(c);
@@ -326,7 +326,7 @@ export function buildWorld({ scene, rng, vr, quality, makeCharacter }) {
     const angDist = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
     let edgeA = null, edgeB = null;
     for (let a = 0; a < Math.PI * 2 - 0.01; a += 0.3) {
-      if (angDist(a, aEntry) < 0.56 || angDist(a, aExit) < 0.56) continue;
+      if (angDist(a, aEntry) < 0.62 || angDist(a, aExit) < 0.6) continue;
       const r = 5.6 + rng() * 1.8, rr = CALA_R + r * 0.55;
       const x = c.x + Math.cos(a) * rr, z = c.z + Math.sin(a) * rr;
       const h = 16 + rng() * 18;

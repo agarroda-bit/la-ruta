@@ -36,11 +36,11 @@ async function pasada(modo) {
     const boostXY = movil ? await btn('boost') : null, brakeXY = null; // FRENO solo en teclado/mando
     if (movil) ok(!!boostXY && !(await p.locator('.btn-tactil[data-id="b"]').count()), 'botón TURBO visible y FRENO fuera de la pantalla táctil');
     const JX = 95, JY = H - 170;
-    let keySteer = null, keyAcc = 0, braking = false, turboUp = 0, lastCalas = 0, airShot = false, turboShot = false, calaShots = 0, t0 = Date.now();
+    let giantShot = false, dolShot = false, keySteer = null, keyAcc = 0, braking = false, turboUp = 0, lastCalas = 0, airShot = false, turboShot = false, calaShots = 0, t0 = Date.now();
     let fpsMin = 999, fpsSum = 0, fpsN = 0;
     if (movil) { await o.touch.down(1, JX, JY); await p.waitForTimeout(60); await o.touch.move(1, JX + 1, JY); }
     while (Date.now() - t0 < 300000) {
-      const e = await p.evaluate(() => { const e = window.__ruta.etapa; return e ? { ...e.pilot, done: e.done, running: e.running, calas: e.calas, air: e.air, turboT: e.turbo, fps: window.__ruta.engine.fps, t: e.t, s: e.s, L: e.L } : null; });
+      const e = await p.evaluate(() => { const e = window.__ruta.etapa; return e ? { ...e.pilot, giant: e.giant, dol: e.dolphinsOn, done: e.done, running: e.running, calas: e.calas, air: e.air, turboT: e.turbo, fps: window.__ruta.engine.fps, t: e.t, s: e.s, L: e.L } : null; });
       if (!e || e.done) break;
       if (e.t > 3) { fpsMin = Math.min(fpsMin, e.fps); fpsSum += e.fps; fpsN++; }
       if (movil) {
@@ -60,6 +60,8 @@ async function pasada(modo) {
         if (!e.brake && braking) { braking = false; await p.keyboard.up('Space'); }
         if (e.turbo) { await p.keyboard.down('ShiftLeft'); await p.waitForTimeout(40); await p.keyboard.up('ShiftLeft'); if (!turboShot) { turboShot = true; await p.waitForTimeout(250); await shot('turbo'); } }
       }
+      if (e.giant && !giantShot) { giantShot = true; await p.waitForTimeout(1800); await shot('gigante'); }
+      if (e.dol && !dolShot) { dolShot = true; await p.waitForTimeout(2500); await shot('delfines'); if (args.track) console.log('  delfines', await p.evaluate(() => JSON.stringify([window.__ruta.etapa.dolDbg, Math.round(window.__ruta.etapa.x), Math.round(window.__ruta.etapa.z), Math.round(window.__ruta.etapa.s)]))); }
       if (e.air && !airShot) { airShot = true; await p.waitForTimeout(120); await shot('salto'); }
       if (e.calas > lastCalas) { lastCalas = e.calas; calaShots++; await p.waitForTimeout(700); await shot('cala' + calaShots); }
       await p.waitForTimeout(40);
@@ -68,7 +70,8 @@ async function pasada(modo) {
     await p.waitForSelector('.resultados', { timeout: 30000 });
     await p.waitForTimeout(2600);
     await shot('final');
-    const r = await p.evaluate(() => { const e = window.__ruta.etapa; return { win: e.win, stars: e.stars, t: e.t, calas: e.calas, olas: e.olas, gates: e.gatesOk + '/' + e.gates, rocas: e.rockHits, barcas: e.boatHits, good: e.goodTime, hits: JSON.stringify(e.hitLog) }; });
+    const r = await p.evaluate(() => { const e = window.__ruta.etapa; return { win: e.win, stars: e.stars, t: e.t, calas: e.calas, olas: e.olas, gates: e.gatesOk + '/' + e.gates, rocas: e.rockHits, barcas: e.boatHits, good: e.goodTime, delfines: e.dolphins, gigante: e.giant, combo: e.combo, hits: JSON.stringify(e.hitLog), track: JSON.stringify(e.track) }; });
+    const tr = r.track; delete r.track; if (args.track) { console.log('  recorrido', tr); console.log('  eventos', await p.evaluate(() => JSON.stringify(window.__ruta.etapa.ev))); }
     ok(true, `${modo}: resultados visibles · ${JSON.stringify(r)}`);
     ok(r.win, `${modo}: etapa ganada (${r.stars} estrellas)`);
     if (fpsN) console.log(`  fps medios ${(fpsSum / fpsN).toFixed(1)}, mínimo ${fpsMin.toFixed(1)}`);

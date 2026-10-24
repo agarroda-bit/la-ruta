@@ -102,13 +102,13 @@ export default {
 
     // ───────── olas grandes (series que llegan por el canal) ─────────
     const series = [];
-    for (let s = 240; s < L - 90; s += ctx.rng.range(115, 160)) {
+    for (let s = 220; s < L - 90; s += ctx.rng.range(85, 120)) {
       if (calas.some((c) => Math.abs(c.s - s) < 70)) continue;
       series.push({ s, n: ctx.rng.chance(0.4) ? 2 : 3, spawned: false });
     }
     // la SERIE GIGANTE: 4 olas enormes encadenadas entre la 2.ª y la 3.ª cala
     const giantS = (calas[1].s + calas[2].s) / 2;
-    for (let i = series.length - 1; i >= 0; i--) if (series[i].s > giantS - 240 && series[i].s < giantS + 120) series.splice(i, 1);
+    for (let i = series.length - 1; i >= 0; i--) if (series[i].s > giantS - 240 && series[i].s < giantS + 200) series.splice(i, 1);
     series.push({ s: giantS, n: 4, giant: true, spawned: false });
     series.sort((a, b) => a.s - b.s);
     // delfines entre la salida y la 1.ª-2.ª cala
@@ -120,7 +120,7 @@ export default {
       const free = ridges.filter((r) => !r.active);
       if (free.length < se.n) return false;
       for (let k = 0; k < se.n; k++) {
-        const r = free[k], s = se.s + k * (se.giant ? 22 : 17), a = path.at(s);
+        const r = free[k], s = se.s + k * (se.giant ? 46 : 17), a = path.at(s);
         Object.assign(r.b, { cx: a.x, cz: a.z, dx: -a.tx, dz: -a.tz, amp: 0 });
         Object.assign(r, { active: true, age: -k * 0.25, target: se.giant ? 2.0 : 1.35 + ctx.rng.range(-0.1, 0.15), giant: !!se.giant, prevAl: 999, done: false, dying: false });
       }
@@ -153,7 +153,7 @@ export default {
           [a1.x + a1.nx * c.side * 10, a1.z + a1.nz * c.side * 10],
         ];
         const idx = wps.findIndex((w) => w.s > c.s);
-        wps.splice(idx < 0 ? wps.length : idx, 0, ...pts.map(([x, z], k) => ({ x, z, s: c.s - 40 + k * 13, cala: c.idx })));
+        wps.splice(idx < 0 ? wps.length : idx, 0, ...pts.map(([x, z], k) => ({ x, z, s: c.s - 40 + k * 13, cala: k === 0 || k === 6 ? -1 : c.idx })));
       }
     }
     let wpI = 0;
@@ -163,7 +163,7 @@ export default {
         const w = wps[wpI];
         const d = Math.hypot(w.x - st.x, w.z - st.z);
         const behind = (w.x - st.x) * Math.sin(st.yaw) + (w.z - st.z) * Math.cos(st.yaw) < 0;
-        if (d < (w.cala >= 0 ? 9 : 12) || (w.cala < 0 && w.s < st.s - 3) || (w.cala >= 0 && behind && d < 18)) wpI++; else break;
+        if (d < (w.cala >= 0 ? 9 : 12) || (w.cala < 0 && w.s < st.s - 3) || (w.cala >= 0 && behind && d < 26)) wpI++; else break;
       }
       let w = wps[wpI];
       // perdido lejos del recorrido (y no en una cala): vuelve al centro del canal
@@ -192,8 +192,8 @@ export default {
         const rx = bt.x - st.x, rz = bt.z - st.z, ahead = rx * fx_ + rz * fz_, side = -rx * fz_ + rz * fx_;
         if (ahead > 0 && ahead < 24 && Math.abs(side) < 6) { steer += (side > 0 ? -1 : 1) * 1.2; blocked = true; }
       }
-      pilot.steer = clamp(steer, -1, 1);
-      pilot.brake = Math.abs(diff) > 1.1 && st.speed > 12;
+      pilot.steer = st.air ? 0 : clamp(steer, -1, 1);
+      pilot.brake = (Math.abs(diff) > 1.1 && st.speed > 12) || (w.cala >= 0 && (Math.abs(diff) > 0.4 || Math.hypot(w.x - st.x, w.z - st.z) < 22) && st.speed > 14);
       pilot.turbo = st.turbo >= 0.33 && st.turboT <= 0 && Math.abs(diff) < 0.12 && !blocked && w.cala < 0 && !st.air;
     }
 
@@ -226,8 +226,8 @@ export default {
       get gate() { return st.gate; }, gates: gates.length, get gatesOk() { return st.gatesOk; },
       get calas() { return st.calas; }, get olas() { return st.olas; }, get speed() { return st.speed; }, get turbo() { return st.turbo; },
       get air() { return st.air; }, get running() { return st.running; }, get done() { return st.done; }, get win() { return st.win; }, get stars() { return st.stars; },
-      get x() { return st.x; }, get z() { return st.z; }, get yaw() { return st.yaw; }, get rockHits() { return st.rockHits; }, get boatHits() { return st.boatHits; },
-      goodTime, pilot, debugCam: null, get hitLog() { return st.hitLog; },
+      get x() { return st.x; }, get z() { return st.z; }, get yaw() { return st.yaw; }, get rockHits() { return st.rockHits; }, get dolphins() { return st.dolphins || 0; }, get combo() { return st.combo || 0; }, get giant() { return !!st.giantOn; }, get dolphinsOn() { return dolphins.state.on && !dolphins.state.done; }, get dolDbg() { return { st: dolphins.state, s0: dolphinS0, pod: dolphins.pod.map((d) => [Math.round(d.x), Math.round(d.y), Math.round(d.z), d.group.visible]) }; }, get ev() { return st.ev; }, get boatHits() { return st.boatHits; },
+      goodTime, pilot, debugCam: null, get hitLog() { return st.hitLog; }, get track() { return st.track; },
       debugInfo: () => ({ calas: calas.map((c) => ({ x: c.x, z: c.z, s: c.s, back: c.back, entry: c.entry })), gates: gates.map((g) => ({ x: g.x, z: g.z })), start: { x: start.x, z: start.z }, monkey: world.monkeyRock, boats: world.boats.map((b) => ({ x: b.x, z: b.z })), anchored: world.anchored.map((b) => ({ x: b.x, z: b.z })) }),
     };
     window.__ruta.etapa = etapa;
@@ -283,6 +283,7 @@ export default {
     function land() {
       st.air = false;
       const clean = st.airT > 0.28 && Math.abs(st.steer) < 0.5;
+      (st.ev = st.ev || []).push(['L', Math.round(st.s), +st.airT.toFixed(2), +st.steer.toFixed(2), st.lastGiant ? 'G' : '']);
       splash(st.x, st.y, st.z, clean ? 30 : 44, clean ? 4 : 6);
       audio.sfx('splash');
       if (clean) {
@@ -349,6 +350,7 @@ export default {
       fx.update(dt); sparkle.update(dt);
       const playing = st.running && !st.done;
       runPilot();
+      if (st.running && (st._lt = (st._lt || 0) + dt) > 5) { st._lt = 0; (st.track = st.track || []).push([Math.round(st.t), Math.round(st.s), Math.round(st.lat), Math.round(st.speed), wpI]); }
 
       // ── control ──
       let steerIn = 0, braking = false;
@@ -377,6 +379,8 @@ export default {
       // ── velocidad y giro ──
       let target = 0;
       if (playing) target = braking ? BRAKE_V : turboOn ? TURBO_V : CRUISE;
+      // aguas tranquilas de las calas: bajío, se va más despacio
+      if (playing && calas.some((c) => Math.hypot(c.x - st.x, c.z - st.z) < CALA_R + 2)) target = Math.min(target, 13);
       else if (st.done) target = 0;
       const k = braking ? 2.6 : turboOn ? 2.4 : st.speed < target ? 0.9 : 0.6;
       if (!st.air) st.speed = damp(st.speed, target, k, dt);
@@ -426,9 +430,10 @@ export default {
         if (!r.done && r.prevAl > 0 && r.prevAl < 50 && al <= 0 && Math.abs(la) < BIG.half - 3 && !st.air && b.amp > 0.6 && playing) {
           r.done = true;
           const cosA = -(fxv * b.dx + fzv * b.dz);
+          (st.ev = st.ev || []).push(['X', Math.round(st.s), +cosA.toFixed(2), Math.round(st.speed), r.giant ? 'G' : '']);
           if (st.speed > 13 && cosA > 0.8) launch((4 + st.speed * 0.27) * (r.giant ? 1.22 : 1), r.giant);
           else if (st.speed > 6) {
-            st.air = true; st.airT = 0; st.vy = 2.6; st.speed *= 0.85;
+            st.air = true; st.airT = 0; st.vy = 2.6; st.speed *= 0.85; st.lastGiant = !!r.giant;
             splash(st.x, st.y, st.z, 14, 3);
             if (cosA <= 0.8) ctx.shout('¡Recta, recta!', { size: 'peque', color: '#9ad7ff' });
           }
@@ -547,10 +552,20 @@ export default {
       if (cam.orbitT > 0) cam.orbitT -= realDt;
       cam.orbit = damp(cam.orbit, cam.orbitT > 0 ? 1 : 0, 1.5, realDt);
       cam.yaw += angleDiff(cam.yaw, st.yaw * 0.6 + (st.yaw + angleDiff(st.yaw, st.velYaw)) * 0.4) * (1 - Math.exp(-4 * dt));
-      let cy = cam.yaw + cam.orbit * cam.orbitSide * 0.8;
+      let cy = cam.yaw + cam.orbit * cam.orbitSide * (camera.aspect < 1 ? 0.5 : 0.8);
       let dist = 8.8 + st.speed * 0.07 + cam.orbit * 2.5, hgt = 4.6 + cam.orbit * 1.2 - (st.air ? 0.4 : 0);
-      if (!st.running && !st.done) { cy = st.yaw + Math.PI + 0.75 + Math.sin(tAll * 0.3) * 0.08; dist = 9.5; hgt = 2.8; }
-      if (st.done) { cam.finishA += dt * 0.3; cy = st.yaw + Math.PI * 0.75 + cam.finishA; dist = 12; hgt = 4.2; }
+      if (!st.running && !st.done) { cy = st.yaw + Math.PI + 0.75 + Math.sin(tAll * 0.3) * 0.08; dist = 9.5 / Math.min(1, camera.aspect * 1.4); hgt = 2.8 + (dist - 9.5) * 0.12; }
+      if (st.done) {
+        if (cam.finishYaw === undefined) {
+          // ángulo de la cámara final que no se meta en las rocas
+          for (const off of [Math.PI - 0.7, Math.PI + 0.7, 0.9, -0.9, Math.PI, 0.3]) {
+            const yy = st.yaw + off, px = st.x - Math.sin(yy) * 12, pz = st.z - Math.cos(yy) * 12;
+            if (world.near(px, pz).every((o) => Math.hypot(px - o.x, pz - o.z) > o.r * 1.35 + 3)) { cam.finishYaw = yy; break; }
+          }
+          if (cam.finishYaw === undefined) cam.finishYaw = st.yaw;
+        }
+        cam.finishA += dt * 0.06; cy = cam.finishYaw + cam.finishA; dist = 12 / Math.min(1, camera.aspect * 1.4); hgt = 5;
+      }
       let cx = st.x - Math.sin(cy) * dist, cz = st.z - Math.cos(cy) * dist;
       // que la cámara no se meta dentro de las rocas
       for (const o of world.near(cx, cz)) {
@@ -561,7 +576,8 @@ export default {
       tmpV.set(cx, camH, cz);
       camera.position.lerp(tmpV, 1 - Math.exp(-(cam.orbit > 0.02 ? 3 * realDt : 6 * dt)));
       const intro = !st.running && !st.done ? 1 : 0;
-      camera.lookAt(st.x + fxv * 8 * (1 - cam.orbit) * (1 - intro) - fzv * 1.6 * intro, st.y + 1.5 - intro * 0.3, st.z + fzv * 8 * (1 - cam.orbit) * (1 - intro) + fxv * 1.6 * intro);
+      const ahead = Math.pow(1 - cam.orbit, 3) * (st.done ? 0 : 1);
+      camera.lookAt(st.x + fxv * 8 * ahead * (1 - intro) - fzv * 1.6 * intro, st.y + 1.5 - intro * 0.3, st.z + fzv * 8 * ahead * (1 - intro) + fxv * 1.6 * intro);
       // flecha de pantalla hacia la siguiente boya
       const ngt = gates[st.gate];
       if (playing && ngt && !etapa.debugCam) {
