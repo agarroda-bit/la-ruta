@@ -40,6 +40,9 @@ const CSS = `
 .mt-contra.on { opacity: 1; animation: mtlatido .3s infinite; }
 .mt-pop { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font-size: clamp(28px, 3vw + 16px, 64px); color: #ffcf3f; -webkit-text-stroke: 3px #1a1036; paint-order: stroke fill; text-shadow: 0 4px 0 #1a1036, 0 0 16px rgba(20,6,2,.75); animation: mtpop 1s ease-out forwards; pointer-events: none; }
 .mt-pop.peque { font-size: clamp(22px, 1.6vw + 16px, 40px); }
+.mt-pop.mega { font-size: clamp(110px, 12vw + 60px, 240px); -webkit-text-stroke: 7px #1a1036; text-shadow: 0 8px 0 #1a1036, 0 0 30px rgba(20,6,2,.8); color: #ffcf3f; }
+.mt-region.mitad .mt-pop.mega { font-size: clamp(80px, 9vw + 40px, 160px); }
+.mt-region:not(.mitad) .mt-ayuda.lado { max-width: 40%; font-size: 14px; padding: 5px 10px; }
 .mt-pop.grande { font-size: clamp(46px, 5vw + 26px, 104px); -webkit-text-stroke: 4px #1a1036; }
 .mt-pop.mt-aviso { font-size: clamp(20px, 1.4vw + 14px, 34px); color: #ffcf3f; background: #1a1036; border: 3px solid #ffcf3f; border-radius: 14px; padding: 4px 14px; -webkit-text-stroke: 0; text-shadow: none; box-shadow: 0 4px 0 rgba(0,0,0,.5); animation: mtaviso 1.6s ease-out forwards; }
 @keyframes mtaviso { 0% { transform: translate(-50%,-50%) scale(.5); opacity: 0; } 12% { transform: translate(-50%,-50%) scale(1.12); opacity: 1; } 22% { transform: translate(-50%,-50%) scale(1); } 85% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1); } }
@@ -95,6 +98,8 @@ export const KEY_HINT = { 0: { punch: 'A', kick: 'S', knee: 'D', block: 'W', dod
 function btn(id, player, cx, cy, size, rot = false) {
   const pos = { left: Math.round(cx - size / 2), top: Math.round(cy - size / 2), width: Math.round(size), height: Math.round(size), bottom: 'auto', right: 'auto' };
   if (rot) pos.rotate = '180deg';
+  if (size < 82 && /BLOQUEO|ESQUIVA/.test(LBL[id])) pos.fontSize = size < 70 ? '9.5px' : '11px';
+  else if (size < 70 && /PATADA|RODILLA/.test(LBL[id])) pos.fontSize = '10px';
   return { id, label: LBL[id], keys: KEYS[id][0], keys2: KEYS[id][1], pad: PAD[id], color: COL[id], player, pos, _cx: cx, _cy: cy, _size: size };
 }
 
@@ -136,9 +141,10 @@ export function computeLayout({ players, phase, W, H }) {
       const g = 12, y1 = H - sb - B / 2, y2 = y1 - B - g;
       const m = 18 + B / 2;
       // jugador 1 (pulgar izquierdo): bloqueo fuera, puño dentro
-      const yd = y2 - B / 2 - g - B * 0.38;
-      buttons.push(btn('block', 0, m, y1, B), btn('punch', 0, m + B + g, y1, B), btn('knee', 0, m, y2, B), btn('kick', 0, m + B + g, y2, B), btn('dodge', 0, m + (B + g) / 2, yd, B * 0.76));
-      buttons.push(btn('block', 1, W - m, y1, B), btn('punch', 1, W - m - B - g, y1, B), btn('knee', 1, W - m, y2, B), btn('kick', 1, W - m - B - g, y2, B), btn('dodge', 1, W - m - (B + g) / 2, yd, B * 0.76));
+      // grupo compacto de 5 por jugador: abajo bloqueo · puño · esquiva, arriba rodilla · patada
+      const s3 = m + 2 * (B + g) - B * 0.1;
+      buttons.push(btn('block', 0, m, y1, B), btn('punch', 0, m + B + g, y1, B), btn('dodge', 0, s3, y1 + B * 0.1, B * 0.8), btn('knee', 0, m, y2, B), btn('kick', 0, m + B + g, y2, B));
+      buttons.push(btn('block', 1, W - m, y1, B), btn('punch', 1, W - m - B - g, y1, B), btn('dodge', 1, W - s3, y1 + B * 0.1, B * 0.8), btn('knee', 1, W - m, y2, B), btn('kick', 1, W - m - B - g, y2, B));
     }
   } else {
     // vertical: abajo = jugador 1, arriba = jugador 2 (girado 180°)
@@ -181,9 +187,9 @@ export function crearCapa(hudEl) {
   (uiRoot() || document.body).appendChild(lienzo); // por encima de los botones: las notas caen sobre ellos
   const api = {
     capa, lienzo, regions: [], hud: [],
-    flash(v = 0.8, color = '#ffffff') {
+    flash(v = 0.8, color = '#ffffff', secs = 0.35) {
       flashEl.style.transition = 'none'; flashEl.style.background = color; flashEl.style.opacity = String(v);
-      void flashEl.offsetWidth; flashEl.style.transition = 'opacity .35s'; flashEl.style.opacity = '0';
+      void flashEl.offsetWidth; flashEl.style.transition = `opacity ${secs}s ease-out`; flashEl.style.opacity = '0';
     },
     // regiones: crea un contenedor por región (girado si toca)
     setRegions(regions, players) {
@@ -268,13 +274,14 @@ export function crearCapa(hudEl) {
     ayuda(html, ms = 2600, { p = null, y = 0.62 } = {}) {
       for (const r of api.regions) {
         if (p !== null && r.pl >= 0 && r.pl !== p) continue;
-        const e = document.createElement('div'); e.className = 'mt-ayuda'; e.innerHTML = html; e.style.top = (y * 100) + '%';
+        const e = document.createElement('div'); e.className = 'mt-ayuda' + (r.pl === -1 && p !== null ? ' lado' : ''); e.innerHTML = html; e.style.top = (y * 100) + '%';
         if (r.pl === -1 && p !== null) e.style.left = p === 0 ? '25%' : '75%';
         r.el.appendChild(e);
         requestAnimationFrame(() => e.classList.add('on'));
         setTimeout(() => { e.classList.remove('on'); setTimeout(() => e.remove(), 350); }, ms);
       }
     },
+    clearTexts() { capa.querySelectorAll('.mt-ayuda, .mt-pop').forEach((e) => e.remove()); },
     dispose() { vin.remove(); lienzo.remove(); capa.remove(); flashEl.remove(); },
   };
   return api;

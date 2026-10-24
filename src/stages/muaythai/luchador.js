@@ -38,6 +38,7 @@ export const POSES = {
   stun: P({ hy: 0.78, lhx: -0.15, lkx: 0.35, rhx: 0.15, rkx: 0.35, lsx: -0.35, lex: -0.7, lsz: 0.25, rsx: -0.3, rex: -0.7, rsz: -0.25, nx: 0.25, tx: 0.1 }),
   ko: P({ rx: -1.48, hy: 0.82, lsz: 1.3, rsz: -1.3, lsx: -0.3, rsx: -0.2, lhx: -0.3, lkx: 0.5, rhx: -0.1, rkx: 0.2, nx: -0.2, ny: 0.5 }),
   koKnees: P({ hy: 0.55, lhx: -1.2, lkx: 1.9, rhx: -0.4, rkx: 1.5, lsx: -0.3, rsx: -0.3, lsz: 0.4, rsz: -0.4, tx: 0.3, nx: 0.5 }),
+  wave: P({ rsz: -2.6, rex: -0.4, rez: 0.3, lsz: 0.2, lex: -0.5, nx: -0.15 }),
   cheer: P({ lsz: 2.6, rsz: -2.6, lex: -0.3, rex: -0.3, nx: -0.25 }),
   cheer2: P({ lsz: 2.9, rsz: -2.9, lex: -0.1, rex: -0.1, nx: -0.35, hy: 0.9 }),
   wai: P({ lsx: -0.75, lsz: -0.62, lex: -1.75, rsx: -0.75, rsz: 0.62, rex: -1.75, tx: 0.25, nx: 0.35 }),

@@ -183,7 +183,7 @@ export class Fight {
       else this.emit('evade', { ...info, perfect: false });
       return;
     }
-    let dmg = mv.dmg * (act.weak ? 0.55 : 1);
+    let dmg = mv.dmg * (act.weak ? 0.55 : 1) * (att.ai ? att.ai.dmgMul : 1);
     if (def.blocking && def.stun <= 0) {
       if (def.st <= 1) {
         dmg *= 0.6; this.applyHit(att, def, dmg, info, true);
@@ -260,6 +260,7 @@ export class RivalAI {
     this.decide = 1.0; this.patCd = 2.2; this.queue = []; this.qDelay = 0; this.blockFor = 0;
     this.lastPat = ''; this.seen = new Set(); this.reacted = null;
     this.onTell = null; this.current = null;
+    this.soft = 0; this.firstTry = false;
     this.hist = []; this.seenAct = null; this.onRead = null; this.reads = 0;
   }
   // ¿el jugador repite el mismo golpe? (3 seguidos del mismo tipo en menos de 2 s)
@@ -270,6 +271,10 @@ export class RivalAI {
     return a.fam === b.fam && b.fam === c.fam && a.t - c.t < 2.0;
   }
   get speed() { return this.round === 1 ? 1 : this.round === 2 ? 0.86 : 0.74; }
+  // suavidad: 0 normal; sube con cada derrota (y el primer asalto del primer intento es amable)
+  get gentle() { return this.soft + (this.round === 1 && this.firstTry ? 1 : 0); }
+  get dmgMul() { return Math.max(0.45, 1 - 0.15 * this.gentle); }
+  get tellMul() { return 1 + 0.22 * this.gentle; }
   interrupt() { this.queue = []; this.current = null; this.blockFor = 0; }
 
   intent(dt) {
@@ -313,7 +318,7 @@ export class RivalAI {
     const fa = foe.action;
     if (fa && fa !== this.reacted && fa.t > 0.1 && !fa.hit) {
       this.reacted = fa;
-      const pb = [0, 0.35, 0.45, 0.55][this.round] || 0.55;
+      const pb = ([0, 0.35, 0.45, 0.55][this.round] || 0.55) * (1 - 0.15 * this.gentle);
       const r = this.rng();
       if (fa.mv.kind === 'kick' && r < pb * 0.45 && f.dodgeCd <= 0) it.dodge = true;
       else if (r < pb) this.blockFor = 0.45 + this.rng() * 0.3;
@@ -341,12 +346,12 @@ export class RivalAI {
     const first = !this.seen.has(pat.id);
     this.seen.add(pat.id);
     this.current = pat;
-    const dur = pat.tell * this.speed * (first ? 1.25 : 1);
+    const dur = pat.tell * this.speed * (first ? 1.25 : 1) * this.tellMul;
     this.f.setTell(pat, dur, () => {
       this.queue = pat.seq.map((s) => [...s]);
       this.qDelay = 0;
     });
-    this.patCd = (3.4 + this.rng() * 1.4) * this.speed;
+    this.patCd = (3.4 + this.rng() * 1.4) * this.speed * (1 + 0.2 * this.gentle);
     this.decide = 0.6;
     if (this.onTell) this.onTell(pat, first, dur);
   }

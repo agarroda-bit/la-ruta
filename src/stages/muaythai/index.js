@@ -171,7 +171,16 @@ export default {
       if (m === 'ko' && st.ko) {
         const L = st.ko.loser, W = st.ko.winner;
         const mid = (L.x + W.x) / 2;
-        return { pos: V(mid + L.dir * 0.5, RING_Y + 1.75, 2.9), look: V(L.x - L.dir * 0.4, RING_Y + 0.55, 0), fov: 52, k: 2.2 };
+        const zt = Math.min(1, (st.time - st.ko.t0) / 1.6);
+        const hd = new THREE.Vector3(); L.ch.rig.hips.getWorldPosition(hd);
+        return { pos: V(hd.x, RING_Y + 1.7 - zt * 0.5, 3.4 - zt * 0.7), look: V(hd.x, Math.max(RING_Y + 0.3, hd.y - 0.1), hd.z), fov: (portraitCam ? 66 : 50) - zt * 16, k: 7 };
+      }
+      if (m === 'descanso' && compi) {
+        return { pos: V(-1.5, RING_Y + 1.75, -0.4), look: V(-3.4, RING_Y + 1.2, -2.4), fov: portraitCam ? 62 : 48, k: 2.5 };
+      }
+      if (m === 'descanso') {
+        const a = t * 0.3; const mid = (f0.x + f1.x) / 2;
+        return { pos: V(mid + Math.sin(a) * 2.8, RING_Y + 2.0, 0.8 + Math.abs(Math.cos(a)) * 2.2), look: V(mid, RING_Y + 1.0, 0), fov: portraitCam ? 64 : 50 };
       }
       if (m === 'final') {
         const a = t * 0.22;
@@ -187,8 +196,8 @@ export default {
       }
       // por encima del hombro: el propio luchador a la izquierda, el rival en el centro
       return {
-        pos: V(f.x - f.dir * (portraitCam ? 2.7 : 2.3), RING_Y + (portraitCam ? 2.75 : 2.3), side * (portraitCam ? 1.45 : 1.35)),
-        look: V(o.x + f.dir * 0.05, RING_Y + (portraitCam ? 0.85 : 0.95), side * -0.2),
+        pos: V(f.x - f.dir * (portraitCam ? 2.3 : 2.3), RING_Y + (portraitCam ? 2.6 : 2.3), side * (portraitCam ? 2.05 : 1.45)),
+        look: V(o.x + f.dir * 0.1, RING_Y + (portraitCam ? 0.85 : 0.95), side * (portraitCam ? -0.45 : -0.2)),
         fov: portraitCam ? 56 : 50,
       };
     }
@@ -227,7 +236,7 @@ export default {
         sonido.hit(mv.kind, crit);
         st.excite = Math.min(1, st.excite + (crit ? 0.5 : heavy ? 0.25 : 0.08));
         ctx.vibrate(crit ? 60 : heavy ? 35 : 12);
-        if (crit) { capa.pop('¡CRÍTICO!', { size: 'grande', color: '#ffb703', y: 0.3 }); capa.flash(0.35, '#ffd27a'); }
+        if (crit) { capa.pop('¡CRÍTICO!', { size: 'grande', color: '#ffb703', y: 0.42 }); capa.flash(0.35, '#ffd27a'); }
         else if (heavy && dmg >= 10) capa.pop(mv.kind === 'kick' ? '¡PATADÓN!' : '¡RODILLAZO!', { p: a.idx, size: '', y: 0.3 });
         else if (mv.kind === 'elbow') capa.pop('¡CODAZO!', { p: a.idx, size: 'peque', y: 0.32 });
         if (st.players === 1 && d.idx === 0) capa.flash(heavy ? 0.24 : 0.12, '#ff9a3c');
@@ -250,12 +259,13 @@ export default {
         st.excite = Math.min(1, st.excite + 0.3);
       });
       fight.on('ko', ({ winner, loser }) => {
-        st.ko = { winner, loser, round: st.round };
+        st.ko = { winner, loser, round: st.round, t0: st.time };
         engine.slowmo(1.8, 0.2);
         engine.shake(1.3);
-        capa.flash(0.9, '#ffffff');
+        capa.flash(0.35, '#fff3d0', 0.18);
         sonido.ko();
-        grito('¡KO!', { color: '#ffcf3f', ms: 1800 });
+        capa.clearTexts();
+        capa.pop('¡KO!', { size: 'mega', color: '#ffcf3f', y: 0.36, ms: 2400 });
         st.excite = 1; st.camMode = 'ko';
         ctx.vibrate(120);
       });
@@ -264,10 +274,10 @@ export default {
           capa.pop('¡TE HA LEÍDO!', { size: '', color: '#7aa7ff', y: 0.26 });
           if (ai.reads <= 2) capa.ayuda('Somchai lee los golpes repetidos: <b>¡varía!</b>', 2400, { y: innerHeight > innerWidth ? 0.2 : 0.3 });
         };
-        ai.onTell = (pat, first) => {
+        ai.onTell = (pat, first, dur) => {
           sonido.tell(pat.id === 'elefante' ? 'kick' : 'x');
           const por = innerHeight > innerWidth;
-          capa.pop(pat.name.toUpperCase(), { size: 'mt-aviso', y: por ? 0.15 : 0.22 });
+          capa.pop(pat.name.toUpperCase(), { size: 'mt-aviso', y: por ? 0.15 : 0.22, ms: Math.round(dur * 1000 + 250) });
           if (first) capa.ayuda(pat.hint, 3000, { y: por ? 0.2 : 0.3 });
         };
       }
@@ -303,7 +313,8 @@ export default {
         rng: ctx.rng, players: 2, sonido, capa, onJudge: waiJudge, solo: st.players === 1,
         ai: st.players === 1 ? { p: 1, skill: 0.85, rng: makeRng(ctx.seed ^ 0x5eed) } : null,
       });
-      capa.ayuda(st.players === 1 ? 'Toca cuando el símbolo llegue a su <b>círculo</b>. ¡Al ritmo del ching!' : 'Cada uno en su mitad: toca cuando el símbolo llegue al <b>círculo</b>.', 3800, { y: st.players === 2 ? 0.16 : 0.1 });
+      if (st.players === 1) capa.ayuda('Toca cuando el símbolo llegue a su <b>círculo</b>. ¡Al ritmo del ching!', 2700, { y: 0.1 });
+      else for (const i of [0, 1]) capa.ayuda('Toca cuando el símbolo<br>llegue al <b>círculo</b>', 2700, { p: i, y: 0.16 });
       grito('WAI KRU', { color: '#ffcf3f', ms: 1400 });
       await until(() => wk.done || disposed);
       if (disposed) return;
@@ -333,9 +344,16 @@ export default {
     // ───── combate ─────
     async function fightPhase() {
       const [f0, f1] = fighters;
-      fight = new Fight(f0, f1);
-      if (st.players === 1) ai = new RivalAI(f1, f0, ctx.rng, fight);
+      fight = new Fight(f0, f1); st.fightRef = fight;
+      if (st.players === 1) {
+        ai = new RivalAI(f1, f0, ctx.rng, fight);
+        const sv = ctx.save.stage('muaythai');
+        st.losses = sv.losses || 0;
+        ai.soft = Math.min(3, st.losses);
+        ai.firstTry = st.losses === 0 && !(sv.stars > 0);
+      }
       wireFight();
+      if (ai && ai.soft > 0) capa.ayuda(`Somchai se lo toma con calma: <b>avisos más largos</b> y golpes más suaves (intento ${st.losses + 1}).`, 3200, { y: innerHeight > innerWidth ? 0.2 : 0.3 });
       st.crowd = audio.loop('crowd'); st.crowd.set({ vol: 0.08 });
       for (let r = 1; r <= ROUNDS; r++) {
         st.round = r; if (ai) ai.round = r;
@@ -362,9 +380,18 @@ export default {
         if (r < ROUNDS) {
           await sleep(0.8);
           for (const f of fighters) { f.hp = Math.min(f.hpMax, f.hp + 10); f.st = f.stMax; }
-          if (st.players === 1) capa.ayuda(`<b>${esc(names[1])}:</b> ${TIPS[(r - 1) % TIPS.length]}`, 2600, { y: 0.55 });
-          else capa.ayuda('Descanso: ¡agua y a por el siguiente!', 2200, { y: 0.5 });
-          await sleep(2.6); if (disposed) return;
+          st.camMode = 'descanso';
+          const lider = f0.hp / f0.hpMax >= f1.hp / f1.hpMax ? 0 : 1;
+          const nom = fname()[lider].toUpperCase();
+          capa.pop(`¡${nom}! ¡${nom}!`, { size: '', color: lider === 0 ? '#ff8a80' : '#9fc0ff', y: 0.3, ms: 1800 });
+          st.excite = 1;
+          if (compi) {
+            compiAnim.play([[0.2, POSES.wave], [0.6, POSES.cheer], [1.0, POSES.wave], [1.6, POSES.neutral]]);
+            capa.ayuda(`<b>${esc(names[1])}:</b> ${compiDice(f0, f1)}`, 2700, { y: innerHeight > innerWidth ? 0.62 : 0.72 });
+          } else capa.ayuda('Descanso: ¡agua, toalla y a por el siguiente!', 2400, { y: 0.5 });
+          await sleep(2.8); if (disposed) return;
+          if (st.players === 1) { capa.ayuda(`<b>Truco:</b> ${TIPS[(r - 1) % TIPS.length]}`, 2300, { y: innerHeight > innerWidth ? 0.62 : 0.72 }); await sleep(2.3); if (disposed) return; }
+          st.camMode = 'fight';
         }
       }
       await endPhase();
@@ -373,14 +400,16 @@ export default {
     async function endPhase() {
       const [f0, f1] = fighters;
       st.phase = 'final';
-      applyLayout('fin');
       for (const f of fighters) { f.freeze = true; f.cancelTell(); }
       let winner, loser, draw = false;
       const ko = st.ko;
+      if (ko) input.configure({ joystick: false, buttons: [] }); // sin borrar el «¡KO!» de pantalla
+      else applyLayout('fin');
       if (ko) {
         winner = ko.winner; loser = ko.loser;
         refSt.mode = 'wave';
         await sleep(2.4); if (disposed) return;
+        applyLayout('fin');
       } else {
         st.camMode = 'final';
         grito('DECISIÓN…', { size: 'peque', color: '#ffffff', ms: 1500 });
@@ -410,6 +439,12 @@ export default {
       finishGame(winner, ko, draw);
     }
 
+    function compiDice(a, b) {
+      const d = a.hp / a.hpMax - b.hp / b.hpMax;
+      if (d > 0.15) return st.round === 1 ? '«¡Vas ganando! Mi abuela ya pide la foto con el cinturón.»' : '«¡Lo tienes! Hasta el árbitro te está aplaudiendo… por dentro.»';
+      if (d < -0.15) return st.round === 1 ? '«Respira. Cuando brille, espera… bloquea justo antes ¡y patada!»' : '«Tranqui, que en el avión nadie se ha enterado. ¡A por él!»';
+      return '«Esto está más igualado que la cola del baño del avión.»';
+    }
     function somchaiDice(win, wp, s) {
       if (win && wp >= 0.9) return 'Somchai: «¡Mi abuela dice que tienes muy buen wai!»';
       if (win && wp >= 0.5) return 'Somchai: «Buen combate. El wai, con un poco más de ritmo, ¡de diez!»';
@@ -432,7 +467,7 @@ export default {
           stats: [
             ['Golpes', vs(f0.stats.landed, f1.stats.landed)],
             ['Bloqueos', vs(f0.stats.blocked, f1.stats.blocked)],
-            ['Wai kru %', vs(Math.round(st.waiPrec[0] * 100), Math.round(st.waiPrec[1] * 100))],
+            ['Wai kru', `${Math.round(st.waiPrec[0] * 100)}\u00a0%\u00a0–\u00a0${Math.round(st.waiPrec[1] * 100)}\u00a0%`],
             ['Puntos', vs(p0, p1)],
           ],
           moreStats: { golpes: f0.stats.landed + f1.stats.landed },
@@ -454,6 +489,7 @@ export default {
       if (win && ko && ko.round === 1) ctx.sticker('ko-1');
       const score = Math.round(f0.stats.points * 10 + f0.hp * 5 + (win ? 1000 : 0) + (win && ko ? 1500 : 0) + st.waiPrec[0] * 1000);
       st.result = { win, stars, ko: !!ko, score };
+      { const sv = ctx.save.stage('muaythai'); sv.losses = win ? 0 : (sv.losses || 0) + 1; ctx.save.touch(); }
       ctx.finish({
         win, stars, score,
         title: win ? (ko ? '¡KO! ¡Qué combate!' : '¡Ganas a los puntos!') : (ko ? 'Somchai gana esta vez' : 'Somchai gana a los puntos'),
@@ -555,7 +591,6 @@ export default {
           for (const f of fighters) if (f) idleAnim(f, fdt);
         }
         for (const f of fighters) if (f) placeFighter(f);
-        if (st.players === 1 && fighters[0]) setGhost(fighters[0], st.camMode === 'fight' && innerHeight > innerWidth ? 0.55 : 1);
         // destellos
         for (let i = 0; i < fighters.length; i++) {
           const f = fighters[i]; if (!f) continue;
@@ -590,7 +625,7 @@ export default {
         st.excite = Math.max(0.2, st.excite - realDt * 0.25);
         estadio.update(realDt, st.phase === 'waikru' ? 0.35 : st.excite);
         if (st.crowd) st.crowd.set({ vol: 0.05 + st.excite * 0.12 });
-        audio.intensity(st.excite);
+        audio.intensity(Math.max(st.excite, st.round === ROUNDS && st.phase === 'ronda' ? 0.9 : st.round === 2 ? 0.5 : 0));
         fx.update(dt);
         for (const r of rings) {
           if (r.t >= 1) continue;
