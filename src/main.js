@@ -197,14 +197,13 @@ async function showMap(focusId) {
   };
   engine.onFrame.add(follow);
   ui._cleanup = () => { engine.onFrame.delete(follow); offKeys(); clearInterval(padT); };
-  if (save.data.namesSet) setTimeout(() => unlockSticker('despegue'), 400);
   // diálogo de viaje la primera vez que se llega al mapa o a una etapa nueva
   const seen = (save.data.seenDialogs.viaje ||= {});
   const key = !seen.inicio ? 'inicio' : (isUnlocked(sel) && VIAJE[sel] && !seen[sel] && sel !== 'phuket' ? sel : null);
   if (key) {
     seen[key] = true; save.touch();
-    setTimeout(() => { if (mapUI === ui) dialog(VIAJE[key], { pos: 'arriba' }); }, 900);
-  }
+    setTimeout(() => { if (mapUI === ui) dialog(VIAJE[key], { pos: 'arriba' }).then(() => unlockSticker('despegue')); }, 900);
+  } else if (save.data.namesSet) setTimeout(() => unlockSticker('despegue'), 400);
 }
 
 function closeMap() { document.querySelectorAll('.dialogo').forEach((d) => d.remove()); document.body.classList.remove('con-dialogo'); if (mapUI) { mapUI._cleanup(); mapUI.remove(); mapUI = null; } }
