@@ -55,15 +55,22 @@ void main(){
     float u = abs(n.x) > abs(n.z) ? vW.z : vW.x;
     vec2 g = vec2(u / 2.4, y / 3.1);
     vec2 cell = floor(g); vec2 f = fract(g);
-    float win = step(0.2, f.x) * step(f.x, 0.8) * step(0.22, f.y) * step(f.y, 0.78);
+    // ventanas con antialias: cuando una ventana ocupa menos de ~2 píxeles se funde con su media
+    vec2 fw = fwidth(g);
+    float aa = smoothstep(0.18, 0.5, max(fw.x, fw.y));
+    vec2 e = clamp(fw * 1.5, 0.001, 0.2);
+    float win = smoothstep(0.2 - e.x, 0.2 + e.x, f.x) * (1.0 - smoothstep(0.8 - e.x, 0.8 + e.x, f.x)) * smoothstep(0.22 - e.y, 0.22 + e.y, f.y) * (1.0 - smoothstep(0.78 - e.y, 0.78 + e.y, f.y));
     float sd = h21(cell + vC.rg * 37.0);
     float lit = step(1.0 - uLit, sd);
-    win = mix(win, 0.36, smoothstep(110.0, 420.0, vD));
     vec3 wc = mix(vec3(1.0, 0.78, 0.45), vec3(0.62, 0.84, 1.0), step(0.72, h21(cell.yx + 7.7)));
     wc *= 0.75 + 0.8 * sd;
     float shade = 0.3 + 0.2 * abs(n.x) + 0.06 * n.z;
     col = vC * shade;
-    col = mix(col, wc, win * lit);
+    vec3 nearC = mix(col, wc, win * lit);
+    // de lejos: brillo medio de la fachada, con franjas suaves por plantas
+    float band = 0.75 + 0.25 * sin(y * 0.35 + vC.b * 20.0);
+    vec3 farC = mix(col, vec3(1.0, 0.82, 0.55), 0.36 * uLit * band);
+    col = mix(nearC, farC, aa);
     col += uGold * vec3(1.0, 0.6, 0.22) * (0.18 + 1.1 * exp(-y * 0.08));
     if (uBand > 0.0) col += uBand * vec3(0.3, 0.65, 1.0) * smoothstep(0.55, 1.0, sin(y * 0.05 - uTime * 1.4));
   }
@@ -77,7 +84,7 @@ void main(){
 // ───────── shader del suelo ─────────
 const GVS = `varying vec3 vW; varying float vD; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vec4 mv = viewMatrix * w; vD = -mv.z; gl_Position = projectionMatrix * mv; }`;
 const GFS = `
-uniform vec3 fogColor; uniform float fogNear; uniform float fogFar; uniform float uTime; uniform vec4 uZ;
+uniform vec3 fogColor; uniform float fogNear; uniform float fogFar; uniform float uTime; uniform vec4 uZ; uniform vec3 uMoon;
 varying vec3 vW; varying float vD;
 float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
 void main(){
@@ -86,13 +93,26 @@ void main(){
   float kCore = smoothstep(uZ.y - 200.0, uZ.y + 200.0, s);
   float kRiver = smoothstep(uZ.z - 160.0, uZ.z + 40.0, s);
   // campos de arroz con agua y la luna reflejada
-  vec2 c = vec2(x / 15.0, s / 10.0); vec2 ci = floor(c); vec2 cf = fract(c);
-  float paddy = step(0.06, cf.x) * step(cf.x, 0.94) * step(0.08, cf.y) * step(cf.y, 0.92);
+  // reflejo del cielo y de la luna sobre agua con ondas
+  vec3 V = normalize(vW - cameraPosition);
+  vec3 Nw = normalize(vec3(sin(x * 1.3 + s * 0.7 + uTime * 1.1) * 0.035 + sin(x * 0.37 - s * 0.21) * 0.02, 1.0, sin(x * 0.6 - s * 1.4 + uTime * 1.4) * 0.035));
+  vec3 Rf = reflect(V, Nw);
+  float md = max(dot(Rf, uMoon), 0.0);
+  vec3 moonRef = vec3(1.0, 0.94, 0.78) * (pow(md, 260.0) * 2.4 + pow(md, 18.0) * 0.18);
+  vec3 skyRef = mix(vec3(0.015, 0.03, 0.09), vec3(0.04, 0.08, 0.2), clamp(1.0 - Rf.y * 2.5, 0.0, 1.0));
+  // arrozales: parcelas de tamaño irregular, diques torcidos
+  vec2 qq = vec2(x + sin(s * 0.019) * 7.0 + sin(s * 0.061) * 2.5, s + sin(x * 0.027) * 5.0);
+  float rowH = 10.0 + 6.0 * h21(vec2(floor(qq.y / 16.0), 2.0));
+  vec2 c = vec2(qq.x / (14.0 + 8.0 * h21(vec2(floor(qq.y / rowH), 9.0))), qq.y / rowH);
+  vec2 ci = floor(c); vec2 cf = fract(c);
   float r = h21(ci);
-  vec3 water = vec3(0.03, 0.08, 0.13) + r * vec3(0.015, 0.04, 0.05);
-  float gl = pow(max(0.0, sin(x * 0.9 + s * 0.35 + r * 6.0) * sin(x * 0.31 - s * 0.6 + uTime * 0.5)), 10.0);
-  water += gl * vec3(0.16, 0.2, 0.3);
-  vec3 campo = mix(vec3(0.06, 0.14, 0.07), water, paddy);
+  float dw = 0.035 + 0.05 * h21(ci + 3.0);
+  float paddy = smoothstep(dw, dw + 0.02, cf.x) * (1.0 - smoothstep(1.0 - dw - 0.02, 1.0 - dw, cf.x)) * smoothstep(dw * 1.4, dw * 1.4 + 0.03, cf.y) * (1.0 - smoothstep(1.0 - dw * 1.4 - 0.03, 1.0 - dw * 1.4, cf.y));
+  vec3 water = skyRef * (0.8 + 0.4 * r) + moonRef;
+  float tuft = step(0.55, h21(floor(vec2(x, s) * 1.3))) * 0.5;
+  vec3 rice = vec3(0.06, 0.16, 0.05) * (0.7 + 0.5 * r + tuft) + moonRef * 0.15;
+  vec3 cellC = mix(water, rice, step(0.74, r));
+  vec3 campo = mix(vec3(0.09, 0.1, 0.05) * (0.8 + 0.4 * h21(ci + 5.0)), cellC, paddy);
   float fl = step(0.987, h21(ci + 11.0)) * (1.0 - smoothstep(0.0, 0.13, length(cf - 0.5)));
   campo += fl * vec3(1.0, 0.7, 0.35) * 2.0;
   // ciudad: calles y farolas
@@ -118,7 +138,7 @@ void main(){
   float rip = pow(0.5 + 0.5 * sin(s * 0.7 + sin(x * 0.06 + uTime * 0.7) * 2.5 + uTime * 1.2), 16.0);
   vec3 rc = mix(vec3(1.0, 0.32, 0.68), vec3(0.3, 0.8, 1.0), 0.5 + 0.5 * sin(x * 0.02 + s * 0.004));
   rc = mix(rc, vec3(1.0, 0.72, 0.32), 0.5 * step(0.0, sin(s * 0.013 + x * 0.01)));
-  vec3 wcol = vec3(0.008, 0.022, 0.055) + rip * rc * 0.45;
+  vec3 wcol = vec3(0.008, 0.022, 0.055) + skyRef * 0.35 + moonRef * 0.8 + rip * rc * 0.45;
   float prom = (1.0 - smoothstep(0.0, 1.0, abs(x - ${SHORE.toFixed(1)}))) * kRiver;
   col = mix(col, wcol, isW);
   col += prom * vec3(1.0, 0.72, 0.38) * 0.9;
@@ -182,7 +202,7 @@ export function makeWorld(scene, ctx) {
 
   // ───────── suelo (un plano y un shader) ─────────
   const groundMat = new THREE.ShaderMaterial({
-    uniforms: { fogColor: F.fogColor, fogNear: F.fogNear, fogFar: F.fogFar, uTime: F.uTime, uZ: { value: new THREE.Vector4(Z.CITY, Z.CORE, Z.RIVER, Z.BUND) } },
+    uniforms: { fogColor: F.fogColor, fogNear: F.fogNear, fogFar: F.fogFar, uTime: F.uTime, uZ: { value: new THREE.Vector4(Z.CITY, Z.CORE, Z.RIVER, Z.BUND) }, uMoon: { value: moonDir } },
     vertexShader: GVS, fragmentShader: GFS, transparent: true,
   });
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(2600, 2600), groundMat);

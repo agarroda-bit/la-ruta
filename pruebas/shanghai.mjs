@@ -1,7 +1,8 @@
 // Prueba de principio a fin de la ETAPA 6 · SHANGHÁI.
 // Juega la etapa entera dos veces: con toques reales en 390×844 (botones ◀ ▶ y TURBO por CDP)
 // y con teclado en 1440×900. Debe llegar a .resultados sin errores de consola.
-// Uso: node pruebas/shanghai.mjs --port 5381 [--solo toque|teclado] [--cpu 4] [--sin-capturas]
+// Uso: node pruebas/shanghai.mjs --port 5381 [--solo toque|teclado] [--cpu 4] [--sin-capturas] [--reaccion 280]
+// --reaccion: el bot decide con lo que vio hace N ms (simula reflejos humanos; no exige ganar)
 import { createServer } from 'vite';
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -9,6 +10,7 @@ import { mkdirSync } from 'node:fs';
 const args = Object.fromEntries(process.argv.slice(2).reduce((acc, v, i, arr) => { if (v.startsWith('--')) acc.push([v.slice(2), arr[i + 1] && !arr[i + 1].startsWith('--') ? arr[i + 1] : 'true']); return acc; }, []));
 const port = Number(args.port || 5381);
 const shots = !args['sin-capturas'];
+const REAC = Number(args.reaccion || 0);
 const DIR = 'pruebas/capturas';
 mkdirSync(DIR, { recursive: true });
 
@@ -55,6 +57,7 @@ async function pass(name, { width, height, touch }) {
   const fps = [];
   const done = new Set();
   let last = null, lastMove = 0, turbos = 0, swipeUsed = false;
+  const hist = [];
   while (Date.now() - t0 < 300000) {
     let st = null;
     try {
@@ -62,13 +65,22 @@ async function pass(name, { width, height, touch }) {
       st = await p.evaluate(() => window.__ruta && window.__ruta.etapa ? { ...window.__ruta.etapa, fps: window.__ruta.engine.fps } : null);
     } catch (e) { errors.push('navegación inesperada: ' + e.message); await sleep(500); continue; }
     if (!st || !st.fase) { await sleep(100); continue; }
+    if (last && st.choques > last.choques && args.verbose) console.log('   choque', JSON.stringify(st.ultimoChoque));
     last = st;
+    if (REAC) {
+      hist.push({ t: Date.now(), st: { s: st.s, peligros: st.peligros, orbesCerca: st.orbesCerca } });
+      while (hist.length > 1 && hist[1].t <= Date.now() - REAC) hist.shift();
+      const old = hist[0].st;
+      // ve el mundo de hace REAC ms, pero sabe en qué carril está ahora
+      st.peligros = old.peligros.map((h) => ({ ...h, d: h.d - (st.s - old.s) }));
+      st.orbesCerca = old.orbesCerca.map((o) => ({ ...o, d: o.d - (st.s - old.s) }));
+    }
     if (st.fase === 'carrera') {
       fps.push(st.fps);
       // elige el carril más seguro: castiga carriles con obstáculo cerca y premia orbes
       const score = [0, 0, 0];
       const ups = st.kmh / 6;
-      const near = st.peligros.filter((h) => h.d > -(h.len || 0) - 1 && h.d < Math.max(45, ups * (h.tipo === 'tren' ? 2.6 : 1.25))).slice(0, 2);
+      const near = st.peligros.filter((h) => h.d > -(h.len || 0) - 1 && h.d < Math.max(45, ups * (h.tipo === 'tren' ? 2.6 : (REAC ? 1.9 : 1.25)))).slice(0, 2);
       for (const h of near) for (const l of h.carriles) score[l] -= 1000 - Math.max(0, h.d);
       for (const o of st.orbesCerca) if (o.d > 0 && o.d < 70) score[o.carril] += 6 - o.d / 20;
       for (let l = 0; l < 3; l++) score[l] -= Math.abs(l - st.carril) * 2;
@@ -104,7 +116,7 @@ async function pass(name, { width, height, touch }) {
   console.log(`[${name}] resultados=${ok} gano=${fin.gano} estrellas=${fin.estrellas} orbes=${fin.orbes}/${fin.orbesTotal} choques=${fin.choques} punta=${fin.maxKmh} t=${fin.t}s turbos=${turbos} fps≈${avg.toFixed(1)} (mín ${fps.length ? Math.min(...fps).toFixed(1) : '-'}) errores=${real.length}`);
   for (const e of real.slice(0, 10)) console.log('   -', e.slice(0, 300));
   await ctx.close();
-  return ok && real.length === 0 && fin.gano;
+  return ok && real.length === 0 && (fin.gano || REAC > 0);
 }
 
 let allOk = true;

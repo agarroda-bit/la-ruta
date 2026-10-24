@@ -22,7 +22,7 @@ export default {
   music: 'shanghai',
   ghost: false,
   controls: {
-    joystick: 'steer',
+    joystick: false, // el deslizamiento lo detecta la etapa (sin aro en pantalla)
     buttons: [
       { id: 'boost', label: 'TURBO', keys: ['ShiftLeft', 'ShiftRight', 'Space', 'KeyW', 'ArrowUp'], pad: [0, 5, 7], color: '#ff4fa3', size: 'big', pos: { right: 22, bottom: 150 } },
       { id: 'izq', label: '◀', keys: [], pad: [], color: '#4361ee', size: 'big', pos: { left: 16, bottom: 30 } },
@@ -55,7 +55,7 @@ export default {
     const st = {
       fase: 'intro', s: 0, L: Z.L, v: 0, kmh: 0, lane: 1, x: 0, energy: 0, turbo: false, orbs: 0, crashes: 0, lost: 0,
       t: 0, invul: 0, maxKmh: 0, tramo: 'CAMPO', tramoI: 0, combo: 0, comboT: -9, laneT: -9, score: 0, ft: 0,
-      win: false, done: false, stars: 0, nearMiss: 0, shieldHits: 0, brakeA: 0,
+      win: false, done: false, stars: 0, nearMiss: 0, shieldHits: 0, danos: 0, shieldHP: 0,
     };
     const fw = new Fireworks(scene, {
       quality: engine.q.particles,
@@ -97,7 +97,7 @@ export default {
     // cámara de la intro: delante del morro, mirando a la cabina
     camera.position.set(6, DECK + 3, -10);
     camera.lookAt(0, DECK + 1.8, 4);
-    let car2x = 0, prevX = 0, axisArmed = true, hum = null, trainSnd = null, warnedFull = false, firstWarn = false;
+    let tipsShown = 0, car2x = 0, prevX = 0, axisArmed = true, hum = null, trainSnd = null, warnedFull = false, firstWarn = false;
     let maglevDone = false, introA = 0, lastNoE = -9, oi = orbs.findIndex((o) => !o.got) < 0 ? orbs.length : orbs.findIndex((o) => !o.got), warnedId = null, lastNear = -9, failed = false;
     const camV = new THREE.Vector3(), lookV = new THREE.Vector3(), lookCur = new THREE.Vector3(0, DECK + 1.8, 4), tmpV = new THREE.Vector3();
     let errLogged = false;
@@ -120,7 +120,7 @@ export default {
         if (st.t - lastNoE > 1.5) { lastNoE = st.t; ctx.shout('¡Falta energía!', { size: 'peque', color: '#4cc9f0', ms: 800 }); audio.sfx('click', { pitch: 0.5 }); }
         return;
       }
-      st.turbo = true; train.shield.visible = true;
+      st.turbo = true; st.shieldHP = 1; train.shield.visible = true; hideEnergyTip();
       audio.sfx('boost'); audio.sfx('whoosh', { pitch: 0.6 });
       ctx.shout('¡TURBO!', { color: '#ff4fa3' });
       engine.shake(0.35); hud.flash('rgba(255,79,163,.35)'); ctx.vibrate(40);
@@ -135,26 +135,54 @@ export default {
 
     function hit(h) {
       if (h.hit) return;
-      if (st.turbo) {
-        h.hit = true; st.shieldHits++; st.score += 150;
+      if (st.turbo && st.shieldHP > 0) {
+        h.hit = true; st.shieldHits++; st.score += 150; st.shieldHP = 0; train.shield.visible = false; st.invul = 0.6;
         smash(h);
         sparks.emit(50, nose(), { colors: ['#4cc9f0', '#ffffff', '#b388ff'], vel: { x: 0, y: 3, z: -st.v * 0.6 }, velSpread: 14, life: 0.7, gravity: -6 });
-        ctx.shout('¡ESCUDO!', { size: 'peque', color: '#4cc9f0' });
+        ctx.shout('¡ESCUDO ROTO!', { size: 'peque', color: '#4cc9f0' });
         audio.sfx('hit', { pitch: 1.5 }); engine.shake(0.45); ctx.vibrate(30);
         return;
       }
       if (st.invul > 0) return;
       h.hit = true;
-      st.crashes++; st.lost += 0.34; st.energy = Math.max(0, st.energy - 0.34); st.v *= 0.28; st.invul = 1.8; st.combo = 0;
+      st.ultimo = { tipo: h.type, carriles: h.lanes, carril: st.lane, x: Math.round(st.x * 10) / 10, s: Math.round(st.s), hs: Math.round(h.s) };
+      st.crashes++; st.danos++; st.lost += 0.34; st.energy = Math.max(0, st.energy - 0.34); st.v *= 0.28; st.invul = 1.8; st.combo = 0;
+      if (st.turbo) { st.turbo = false; train.shield.visible = false; }
       smash(h);
       sparks.emit(70, nose(), { colors: ['#ffd166', '#ff7b00', '#ffffff'], vel: { x: 0, y: 4, z: -st.v * 0.6 }, velSpread: 11, life: 0.9, gravity: -14, size: 0.55 });
       engine.shake(1.1); engine.slowmo(0.5, 0.3); ctx.vibrate(140);
       audio.sfx('crash'); audio.sfx('hit');
       hud.flash('rgba(255,30,60,.55)');
-      if (st.crashes >= 3) { lose(); return; }
-      ctx.shout(st.crashes === 1 ? '¡FRENAZO!' : '¡OTRO FRENAZO!', { color: '#ff2d55' });
-      ctx.toast(`💥 Choque ${st.crashes} de 3`, 1300);
+      if (st.danos >= 3) { lose(); return; }
+      ctx.shout(st.danos === 1 ? '¡FRENAZO!' : '¡ÚLTIMO AVISO!', { color: '#ff2d55' });
     }
+
+    let tipEl = null, tipT = 0;
+    function showEnergyTip() {
+      hideEnergyTip();
+      tipEl = document.createElement('div'); tipEl.className = 'sh-tip';
+      tipEl.innerHTML = '⚡ ¡Turbo listo! Pulsa <b>TURBO</b>';
+      ctx.hud.el.appendChild(tipEl); tipT = 2.4;
+    }
+    function hideEnergyTip() { if (tipEl) { tipEl.remove(); tipEl = null; } }
+
+    // deslizar en la mitad izquierda = cambiar de vía (sin dibujar joystick)
+    const swipe = { id: null, x: 0, y: 0 };
+    const onBtn = (x, y) => [...document.querySelectorAll('.controles .btn-tactil')].some((b) => { const r = b.getBoundingClientRect(); return r.width && x > r.left - 14 && x < r.right + 14 && y > r.top - 14 && y < r.bottom + 14; });
+    const pDown = (e) => {
+      if (e.pointerType === 'mouse' || swipe.id !== null || st.fase !== 'carrera' || engine.paused) return;
+      if (e.target.closest && e.target.closest('.no-ctrl, button, .panel, .dialogo')) return;
+      if (e.clientX > innerWidth * 0.62 || onBtn(e.clientX, e.clientY)) return;
+      swipe.id = e.pointerId; swipe.x = e.clientX; swipe.y = e.clientY;
+    };
+    const pMove = (e) => {
+      if (e.pointerId !== swipe.id) return;
+      const dx = e.clientX - swipe.x;
+      if (Math.abs(dx) > 26 && Math.abs(dx) > Math.abs(e.clientY - swipe.y) * 0.8) { changeLane(Math.sign(dx)); swipe.x = e.clientX; swipe.y = e.clientY; }
+    };
+    const pUp = (e) => { if (e.pointerId === swipe.id) swipe.id = null; };
+    addEventListener('pointerdown', pDown, true); addEventListener('pointermove', pMove, true);
+    addEventListener('pointerup', pUp, true); addEventListener('pointercancel', pUp, true);
 
     function nearMiss(h) {
       if (st.t - st.laneT > 0.5 || st.t - lastNear < 2) return;
@@ -173,7 +201,7 @@ export default {
       sparks.emit(10, tmpV.set(LANES[o.lane], DECK + 1.7, -o.s), { colors: ['#5ef0ff', '#ffffff', '#2fa8ff'], vel: { x: 0, y: 2, z: -st.v * 0.85 }, velSpread: 5, life: 0.5, gravity: 0, size: 0.4 });
       ctx.hud.pop('orbes');
       if (st.combo >= 10 && st.combo % 10 === 0) ctx.shout(`¡CADENA x${st.combo}!`, { size: 'peque', color: '#5ef0ff', ms: 800 });
-      if (st.energy >= 0.999 && !warnedFull && !st.turbo) { warnedFull = true; ctx.toast('⚡ ¡Energía a tope! Pulsa <b>TURBO</b>', 2400); audio.sfx('star'); }
+      if (st.energy >= 0.999 && !warnedFull && !st.turbo) { warnedFull = true; if (tipsShown++ < 2) showEnergyTip(); audio.sfx('star'); }
     }
 
     function lose() {
@@ -186,7 +214,7 @@ export default {
       if (st.done) return;
       st.done = true; st.win = win;
       const total = orbs.length;
-      const s2 = st.crashes <= 1, s3 = st.crashes <= 1 && st.orbs >= Math.ceil(total * 0.7);
+      const s2 = st.crashes <= 1, s3 = st.crashes <= 1 && st.orbs >= Math.ceil(total * 0.72);
       st.stars = win ? 1 + (s2 ? 1 : 0) + (s3 ? 1 : 0) : 0;
       const score = Math.round(st.score + st.orbs * 20 + (win ? (3 - st.crashes) * 1000 + Math.max(0, 170 - st.t) * 25 : st.s / 10));
       const stats = [['Orbes', `${st.orbs}/${total}`], ['Choques', `${st.crashes}/3`], ['Punta', `${Math.round(st.maxKmh)} km/h`], ['Tiempo', fmtTime(st.t)]];
@@ -253,10 +281,14 @@ export default {
         if (d < Math.max(120, st.v * (h.type === 'tren' ? 3.2 : 2.4))) { best = h; break; }
       }
       if (!best) { if (warnedId !== null) { hud.aviso(null); warnedId = null; } return; }
-      const html = `⚠ ${NOMBRE[best.type]}<span class="sh-carriles">${[0, 1, 2].map((l) => `<i class="${best.lanes.includes(l) ? 'x' : ''}${l === st.lane ? ' yo' : ''}"></i>`).join('')}</span>`;
+      const lanesB = new Set(best.lanes);
+      for (const h of hazards) if (h !== best && !h.hit && Math.abs(h.s - best.s) < 6) h.lanes.forEach((l) => lanesB.add(l));
+      const html = `⚠ ${NOMBRE[best.type]} <span class="sh-carriles">${[0, 1, 2].map((l) => (lanesB.has(l) ? '<b class="x">✕</b>' : `<b class="ok">${l === st.lane ? '◉' : '●'}</b>`)).join('')}</span>`;
       hud.aviso(html);
       if (warnedId !== best) {
         warnedId = best;
+        const an = hazards.find((h) => h.anuncio && !h.anunciado && h.s - st.s < 420 && h.s > st.s);
+        if (an) { an.anunciado = true; ctx.shout(an.anuncio, { size: 'peque', color: '#ff2d55', ms: 1600 }); }
         if (best.type === 'tren') audio.sfx('horn', { pitch: 0.55, vol: 0.9 });
         else audio.sfx('countdown', { pitch: 0.7, vol: 0.35 });
         if (!firstWarn) { firstWarn = true; ctx.shout('◀ ▶ ¡CAMBIA DE VÍA!', { size: 'peque', color: '#ffd166', ms: 1400 }); }
@@ -274,6 +306,7 @@ export default {
       if (input.pressed('der')) dir = 1;
       if (dir) changeLane(dir);
       if (input.pressed('boost')) tryTurbo();
+      if (st.energy < 0.5) warnedFull = false;
       // velocidad
       const prog = st.s / Z.L;
       const cruise = (240 + 140 * smoothstep(0, 0.92, prog)) / KMH;
@@ -310,6 +343,7 @@ export default {
       let ti = 0; for (let i = 0; i < TRAMOS.length; i++) if (st.s >= TRAMOS[i][0]) ti = i;
       if (ti !== st.tramoI) {
         st.tramoI = ti; st.tramo = TRAMOS[ti][1];
+        if ((ti === 1 || ti === 2) && st.danos > 0) { st.danos--; setTimeout(() => { ctx.shout('🔧 ¡TREN REPARADO!', { size: 'peque', color: '#7cff6b', ms: 1300 }); audio.sfx('star'); }, 1600); }
         ctx.shout(ti === 3 ? '¡EL BUND!' : `TRAMO ${ti + 1} · ${st.tramo}`, { size: 'peque', color: '#ffd166', ms: 1500 });
         audio.sfx('bell', { vol: 0.6 });
         if (ti === 3) { const fc = VIEW.at(285, 0); fw.setShow({ x: fc.x, z: fc.z, w: 150, d: 300, minH: 120, maxH: 230, rate: 0.9, scale: 1 }); }
@@ -358,7 +392,7 @@ export default {
       }
       if (st.fase === 'final') { finaleCamera(dt); return; }
       const sF = clamp((st.kmh - 150) / 280, 0, 1);
-      const back = pr ? 58 : 56, up = pr ? 10.2 : 8.2;
+      const back = pr ? 36 : 56, up = pr ? 12.5 : 8.2;
       const k = st.fase === 'cuenta' ? 1 - Math.exp(-dt * 2.2) : 1 - Math.exp(-dt * 7);
       if (st.fase === 'llegada') {
         // entrando en la estación: la cámara se acerca y baja bajo los arcos de luz
@@ -367,7 +401,7 @@ export default {
         lookV.set(st.x * 0.8, DECK + 1.2 + kk * 1.5, -st.s - 40);
       } else {
         camV.set(st.x * 0.55, DECK + up, -st.s + back + st.v * 0.05);
-        lookV.set(st.x * 0.8, DECK + (pr ? 0.2 : 1.2), -st.s - (pr ? 30 : 40));
+        lookV.set(st.x * 0.8, DECK + (pr ? 0 : 1.2), -st.s - (pr ? 45 : 40));
       }
       camera.position.x += (camV.x - camera.position.x) * k;
       camera.position.y += (camV.y - camera.position.y) * k;
@@ -378,7 +412,7 @@ export default {
       lookCur.lerp(lookV, st.fase === 'cuenta' ? k : 1 - Math.exp(-dt * 10));
       camera.lookAt(lookCur);
       camera.rotateZ(clamp(-vx * 0.0035, -0.06, 0.06));
-      const fov = (pr ? 62 : 52) + sF * 13 + (st.turbo ? 8 : 0);
+      const fov = (pr ? 60 : 52) + sF * 12 + (st.turbo ? 7 : 0);
       camera.fov = damp(camera.fov, fov, 3, dt);
       camera.updateProjectionMatrix();
     }
@@ -420,7 +454,7 @@ export default {
       for (let i = oi; i < orbs.length && orbs[i].s - st.s < 220; i++) if (!orbs[i].got) orbesCerca.push({ d: Math.round((orbs[i].s - st.s) * 10) / 10, carril: orbs[i].lane });
       Object.assign(etapa, {
         fase: st.fase, s: Math.round(st.s), L: Z.L, progreso: Math.min(1, st.s / Z.L), carril: st.lane, x: st.x, kmh: Math.round(st.kmh),
-        energia: Math.round(st.energy * 100) / 100, turbo: st.turbo, orbes: st.orbs, orbesTotal: orbs.length, choques: st.crashes,
+        energia: Math.round(st.energy * 100) / 100, turbo: st.turbo, orbes: st.orbs, orbesTotal: orbs.length, choques: st.crashes, danos: st.danos, ultimoChoque: st.ultimo || null,
         terminado: st.done, gano: st.win, estrellas: st.stars, maxKmh: Math.round(st.maxKmh), t: Math.round(st.t * 10) / 10,
         peligros, orbesCerca,
       });
@@ -487,16 +521,19 @@ export default {
           fw.update(dt, engine.renderer ? engine.renderer.domElement.height / 2 : innerHeight);
           setHudWarning();
           if (!st.finSetup) hud.update(st, orbs.length);
+          if (tipEl) { tipT -= realDt; if (tipT <= 0 || st.turbo || st.energy < 0.999 || st.fase !== 'carrera') hideEnergyTip(); }
           const tb = turboBtn();
           if (tb) { const ready = st.energy >= 0.999 && !st.turbo && st.fase === 'carrera'; tb.el.classList.toggle('listo', ready); tb.el.classList.toggle('vacio', !ready && !st.turbo); }
           updateAudio();
           publish();
-          void realDt;
         } catch (e) {
           if (!errLogged) { errLogged = true; console.error('shanghai update', e); }
         }
       },
       dispose() {
+        removeEventListener('pointerdown', pDown, true); removeEventListener('pointermove', pMove, true);
+        removeEventListener('pointerup', pUp, true); removeEventListener('pointercancel', pUp, true);
+        hideEnergyTip();
         if (hum) hum.stop();
         if (trainSnd) trainSnd.stop();
         fw.dispose(); sparks.dispose(); world.dispose();

@@ -20,11 +20,17 @@ const CSS = `
 .sh-choques { display: flex; gap: 4px; align-items: center; }
 .sh-choques i { width: 18px; height: 12px; border-radius: 6px 10px 3px 3px; background: #eef2f8; box-shadow: inset 0 -4px 0 #1f6feb; display: inline-block; }
 .sh-choques i.roto { background: #4a2030; box-shadow: none; opacity: .6; }
-.tema-shanghai .hud-ruta { min-width: 0; width: 118px; }
+.tema-shanghai .hud-ruta { min-width: 0; width: 160px; padding: 2px 10px 6px; }
+.tema-shanghai .hud-energia { width: 160px; min-width: 0; }
+.tema-shanghai .hud-izq .hud-item { padding: 4px 10px; }
 .tema-shanghai .hud-ruta .barra-lbl { font-size: 11px; }
-.tema-shanghai .hud-aviso { position: absolute; top: 74px; left: 50%; transform: translateX(-50%); background: rgba(190, 16, 40, .88); border-color: #ffb3c0; animation: shparpadeo .3s infinite alternate; font-size: 15px; }
+.tema-shanghai .hud-aviso { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); background: rgba(190, 16, 40, .88); border-color: #ffb3c0; animation: shparpadeo .3s infinite alternate; font-size: 15px; }
 @keyframes shparpadeo { to { background: rgba(120, 6, 24, .88); } }
-.sh-carriles { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: -3px; }
+.sh-carriles { display: inline-flex; gap: 7px; margin-left: 6px; font-family: var(--texto); font-weight: 800; }
+.sh-carriles b { width: 22px; text-align: center; font-size: 18px; line-height: 1; }
+.sh-carriles b.x { color: #fff; text-shadow: 0 0 6px #fff; }
+.sh-carriles b.ok { color: #7cff6b; }
+.sh-tip { position: fixed; left: 50%; top: calc(170px + var(--safe-t)); transform: translateX(-50%); background: rgba(255,79,163,.92); color: #fff; font-family: var(--texto); font-weight: 800; font-size: 16px; padding: 7px 16px; border-radius: 14px; border: 2px solid #fff; white-space: nowrap; animation: shbanner .4s cubic-bezier(.2,1.5,.4,1) both; box-shadow: 0 0 18px #ff4fa3; }
 .sh-carriles i { width: 13px; height: 18px; border-radius: 4px; background: rgba(255,255,255,.3); display: inline-block; }
 .sh-carriles i.x { background: #ff2d55; box-shadow: 0 0 8px #ff8099; }
 .sh-carriles i.yo { outline: 2px solid #4cc9f0; }
@@ -33,8 +39,8 @@ const CSS = `
 .sh-lineas { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 55%, rgba(76,201,240,.18) 80%, rgba(255,79,163,.28) 100%); transition: opacity .3s; }
 .sh-fundido { position: fixed; inset: 0; background: #02040d; opacity: 0; transition: opacity .4s; pointer-events: none; }
 .sh-fundido.on { opacity: 1; }
-.sh-banner { position: fixed; left: 50%; top: 31%; transform: translate(-50%, -50%); width: 92%; text-align: center; font-family: var(--titulo); font-size: clamp(26px, 7.4vw, 56px); line-height: 1.08; color: #fff; -webkit-text-stroke: 2px #1a1036; text-shadow: 0 4px 0 #1a1036, 0 0 26px #ff4fa3; pointer-events: none; animation: shbanner 1s cubic-bezier(.2,1.5,.4,1) both; }
-.sh-banner small { display: block; font-family: var(--texto); font-weight: 800; font-size: .42em; -webkit-text-stroke: 0; letter-spacing: 3px; color: #ffd166; text-shadow: 0 2px 0 #1a1036; margin-top: 8px; }
+.sh-banner { position: fixed; left: 50%; top: 44%; transform: translate(-50%, -50%); width: 100%; padding: 16px 4% 14px; background: linear-gradient(180deg, rgba(4,6,20,0) 0%, rgba(4,6,20,.72) 18%, rgba(4,6,20,.72) 82%, rgba(4,6,20,0) 100%); text-align: center; font-family: var(--titulo); font-size: clamp(26px, 7.4vw, 56px); line-height: 1.08; color: #fff; -webkit-text-stroke: 2px #1a1036; text-shadow: 0 4px 0 #1a1036, 0 0 26px #ff4fa3; pointer-events: none; animation: shbanner 1s cubic-bezier(.2,1.5,.4,1) both; }
+.sh-banner small { display: block; font-family: var(--texto); font-weight: 800; font-size: .42em; -webkit-text-stroke: 0; letter-spacing: 3px; color: #ffd166; text-shadow: 0 2px 0 #1a1036, 0 0 10px #000; margin-top: 10px; }
 @keyframes shbanner { from { transform: translate(-50%, -50%) scale(.3); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
 .controles .btn-tactil[data-id="izq"] span, .controles .btn-tactil[data-id="der"] span { font-size: 40px; line-height: .8; }
 .controles .btn-tactil[data-id="boost"].listo { animation: shturbo .45s infinite alternate; }
@@ -70,10 +76,10 @@ export function makeHud(ctx) {
       hud.bar('energia', st.energy);
       const lbl = st.turbo ? '⚡ ¡TURBO!' : st.energy >= 0.999 ? '⚡ ¡TURBO LISTO!' : '⚡ ENERGÍA';
       if (lbl !== lastLbl) { eLbl.textContent = lbl; energia.classList.toggle('lleno', st.energy >= 0.999 && !st.turbo); lastLbl = lbl; }
-      hud.set('orbes', `<span class="sh-orb"></span>${st.orbs}<small style="opacity:.6">/${total}</small>`, 'izq');
-      hud.bar('ruta', st.s / st.L, st.tramo, 'izq', '#ffd166');
+      hud.set('orbes', `<span class="sh-orb"></span>${st.orbs}`, 'izq');
+      hud.bar('ruta', st.s / st.L, st.tramo, 'centro', '#ffd166');
       const rb = hud.items.get('ruta'); if (rb) { const l = rb.querySelector('.barra-lbl'); if (l && l.textContent !== st.tramo) l.textContent = st.tramo; }
-      hud.set('choques', `<div class="sh-choques">${[0, 1, 2].map((i) => `<i class="${i < st.crashes ? 'roto' : ''}"></i>`).join('')}</div>`, 'izq');
+      hud.set('choques', `<div class="sh-choques">${[0, 1, 2].map((i) => `<i class="${i >= 3 - st.danos ? 'roto' : ''}"></i>`).join('')}</div>`, 'izq');
       fx.style.opacity = String(st.turbo ? 1 : Math.max(0, (st.kmh - 330) / 200));
     },
     aviso(html) {
