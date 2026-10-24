@@ -392,7 +392,7 @@ export default {
               world.throwFruit(c.p, fwd, st.speed);
               fx.emit(5, c.p, { colors: ['#ffb347', '#ff6b6b'], vel: { x: fwd.x * 3, y: 3, z: fwd.z * 3 }, velSpread: 3, life: 0.5, size: 0.18, gravity: -12 });
               ctx.audio.sfx('hit', { vol: 0.5, pitch: 1.4 }); ctx.engine.shake(0.15);
-              if (st.crates % 3 === 1) shout('¡FRUTA AL AIRE!', { size: 'peque', color: '#8ac926' });
+              if (st.crates % 3 === 1) shout('¡FRUTA AL AIRE!', { size: 'peque', color: '#ffe66d' });
             }
           });
         }
@@ -491,13 +491,13 @@ export default {
 
         // retrovisor: solo cuando el taxi va cerca por detrás
         const gap = st.prog - tx.s;
-        let mirrorOn = st.running && !st.done && gap > 2 && gap < 55 && engine.qualityName !== 'baja' && !engine.battery;
+        let mirrorOn = st.running && !st.done && gap > 2 && gap < 40 && engine.qualityName !== 'baja' && !engine.battery;
         if (mirrorOn) {
           const r = ui.mirrorRect;
           mirrorCam.aspect = r.w / r.h; mirrorCam.updateProjectionMatrix();
           const yb = new THREE.Vector3(-Math.sin(st.yaw), 0, -Math.cos(st.yaw));
-          mirrorCam.position.set(pos.x + yb.x * 2.3, st.y + 1.35, pos.z + yb.z * 2.3);
-          mirrorCam.lookAt(pos.x + yb.x * 30, st.y + 0.6, pos.z + yb.z * 30);
+          mirrorCam.position.set(pos.x + yb.x * 2.3, st.y + 1.5, pos.z + yb.z * 2.3);
+          { const tp = taxi.group.position; mirrorCam.lookAt(tp.x, tp.y + 0.8, tp.z); mirrorCam.fov = clamp(2 * Math.atan(3.2 / Math.max(4, gap)) * 180 / Math.PI, 12, 48); mirrorCam.updateProjectionMatrix(); }
           mirrorCam.updateMatrixWorld();
           tmpV.copy(taxi.group.position); tmpV.y += 1; tmpV.project(mirrorCam);
           mirrorOn = tmpV.z < 1 && Math.abs(tmpV.x) < 0.9 && Math.abs(tmpV.y) < 0.95;
@@ -628,7 +628,7 @@ export default {
       st.done = true; st.win = win; st.running = false; st.endT = 0;
       st.drifting = false; st.boostT = 0;
       st.lead = win ? Math.max(0, leadNow()) : 0;
-      ctx.input.hideTouch(); ui.warn(false);
+      ctx.input.hideTouch(); ui.warn(false); if (ctx.cinematic) ctx.cinematic(true);
       ui.showMirror(false);
       if (win) {
         engine.slowmo(1.1, 0.3);

@@ -22,7 +22,7 @@ const CSS = `
 .mc-aviso{font-size:17px;color:#fff;background:linear-gradient(90deg,#ff4fd8,#9b5de5);padding:5px 14px;border-radius:12px;border:3px solid #1a1036;box-shadow:0 0 14px #ff4fd8;animation:mcLat .3s infinite alternate;letter-spacing:.5px}
 .mc-avisobox{white-space:nowrap;position:fixed;left:50%;transform:translateX(-50%);z-index:3;font-family:Bungee,sans-serif;transition:opacity .15s}
 @media (max-width:430px){.mc-aviso{font-size:13px;padding:4px 10px}}
-.hud.tema-macao .hud-item{background:rgba(30,10,58,.78);border-color:rgba(199,125,255,.45)}
+.hud.tema-macao .hud-item{background:rgba(26,8,50,.96);border-color:rgba(199,125,255,.45)}
 @media (max-width:430px){.mc-ruta{min-width:150px}.hud.tema-macao .hud-izq .hud-item{font-size:15px;padding:4px 9px}.mc-gap{font-size:11px}}
 `;
 
