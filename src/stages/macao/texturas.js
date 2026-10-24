@@ -44,7 +44,9 @@ export function facadeTex(seed) {
   let s = seed * 9301 + 49297; const rnd = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
   const W = 256, H = 512;
   const lit = [];
-  const map = canvasTexture(W, H, (c) => {
+  // a doble resolución para que no se vea pixelada de cerca
+  const map = canvasTexture(W * 2, H * 2, (c) => {
+    c.scale(2, 2);
     c.fillStyle = '#f4eee6'; c.fillRect(0, 0, W, H);
     c.fillStyle = '#ffffff'; c.fillRect(0, 0, W, 24);
     c.fillStyle = '#c9bfb4'; c.fillRect(0, 24, W, 6);
@@ -77,7 +79,8 @@ export function facadeTex(seed) {
       c.fillStyle = '#1a1020'; c.beginPath(); c.roundRect(x, 420, 92, 92, [46, 46, 0, 0]); c.fill();
     }
   });
-  const emissive = canvasTexture(W, H, (c) => {
+  const emissive = canvasTexture(W * 2, H * 2, (c) => {
+    c.scale(2, 2);
     c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
     const cols = ['#ffb347', '#ffd38a', '#ff9fc4', '#ffc070'];
     for (const [x, y, w, h] of lit) {

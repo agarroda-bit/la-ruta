@@ -62,7 +62,7 @@ async function pasada(nombre, { width, height, touch }) {
     await cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : pts });
   };
   const fingerDown = async (id, x, y) => { fingers.set(id, { x, y }); await send(anyDown ? 'touchStart' : 'touchStart'); anyDown = true; };
-  const fingerMove = async (id, x, y) => { const f = fingers.get(id); if (!f) return; f.x = x; f.y = y; await send('touchMove'); };
+  const fingerMove = async (id, x, y) => { const f = fingers.get(id); if (!f || !touch) return; f.x = x; f.y = y; await send('touchMove'); };
   // soltar un dedo: touchEnd con SOLO ese punto (touchMove sin él no lo suelta en Chromium)
   const fingerUp = async (id) => { const f = fingers.get(id); if (!f) return; fingers.delete(id); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [{ x: f.x, y: f.y, id }] }); if (!fingers.size) anyDown = false; };
 
@@ -108,7 +108,7 @@ async function pasada(nombre, { width, height, touch }) {
       else if (wantTurbo) { await key('ShiftLeft', true); turboTaps++; }
     }
     if (shots && !shotBridge && st.kind === 'bridge' && st.t > 8) { shotBridge = true; await page.screenshot({ path: `pruebas/capturas/macao-${nombre}-puente.png` }); }
-    if (shots && st.onShortcut && !shotTipos.has(st.tipo)) { shotTipos.add(st.tipo); await page.waitForTimeout(st.tipo === 'escaleras' ? 900 : 600); await page.screenshot({ path: `pruebas/capturas/macao-${nombre}-${st.tipo}.png` }); }
+    if (shots && st.onShortcut && !shotTipos.has(st.tipo)) { for (const k of [...keys]) await key(k, false); await fingerMove(0, joy.x, joy.y); shotTipos.add(st.tipo); await page.waitForTimeout(st.tipo === 'escaleras' ? 900 : 600); await page.screenshot({ path: `pruebas/capturas/macao-${nombre}-${st.tipo}.png` }); }
     if (shots && !shotMid && st.kind === 'city' && st.progress > 0.42 && !st.onShortcut) { shotMid = true; await page.screenshot({ path: `pruebas/capturas/macao-${nombre}-casco.png` }); }
     await page.waitForTimeout(45);
   }

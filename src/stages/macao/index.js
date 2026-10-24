@@ -116,8 +116,11 @@ export default {
       boostT: 0, miniT: 0, turbo: 1, drifting: false, driftT: 0, driftDir: 0,
       scrape: false, scrapeOff: 1, combo: 0, lastScrape: -99, maxCombo: 0, scrapes: 0,
       shortcuts: 0, scDone: new Set(), crates: 0, jumps: 0, crashes: 0, nearMiss: 0, invuln: 0,
-      cheerT: 0, brakeK: 0, lead: 0, hintShown: false, wheelSpin: 0,
+      cheerT: 0, brakeK: 0, lead: 0, drifts: 0, hintShown: false, wheelSpin: 0,
     };
+    // primer intento (sin estrellas aún): Zhou va algo más tranquilo
+    const firstTry = !(ctx.best && ctx.best.stars > 0);
+    const zhouBase = firstTry ? 27.7 : 28.6, zhouRubber = firstTry ? 2.6 : 3.4;
     const tx = { s: 10, lat: 2.5, v: 0, y: 0, vy: 0, air: false, yaw: 0, latV: 0, honkT: 3, talkT: 6, mode: 'chase', wasAhead: false, bumpCD: 0, wheelSpin: 0, finished: false };
     {
       const a = main.at(st.prog);
@@ -203,7 +206,7 @@ export default {
         if (st.combo >= 10) { if (st.combo === 10) ctx.shout('¡LLUVIA DE CHISPAS!', { size: 'peque', color: '#ffd166' }); ctx.sticker('chispas'); }
       }
       st.scrapeOff = 0; st.scrape = true;
-      fxA.emit(3, where, { colors: ['#fff3b0', '#ffd166', '#ff9f1c', '#ffffff'], vel: { x: side.x * 3 - fwd.x * 6, y: 3, z: side.z * 3 - fwd.z * 6 }, velSpread: 4, life: 0.45, size: 0.22, gravity: -14 });
+      if (st.frame % 2 === 0) fxA.emit(2, where, { colors: ['#fff3b0', '#ffd166', '#ff9f1c', '#ffffff'], vel: { x: side.x * 2 - fwd.x * 3, y: 2.5, z: side.z * 2 - fwd.z * 3 }, velSpread: 2.5, life: 0.3, size: 0.14, gravity: -14 });
     }
     function crash(msg) {
       st.crashes++; st.combo = 0; ctx.hud.remove('combo');
@@ -212,14 +215,19 @@ export default {
       st.invuln = 0.8;
     }
 
+    // una sola fórmula de ventaja (segundos que tardaría el taxi en llegar a donde estoy)
+    function leadNow() { return (Math.min(st.prog, finishS) - tx.s) / Math.max(tx.v, 12); }
     function updateHud() {
       const gap = st.prog - tx.s;
-      const lead = gap / Math.max(tx.v, 12);
+      const lead = st.done ? st.lead : leadNow();
       let text, alert = false;
       if (!st.running && !st.done) text = '¡A POR EL FERRY!';
+      else if (st.done) { text = st.win ? `VENTAJA +${st.lead.toFixed(1)} s` : '¡EL TAXI LLEGA ANTES!'; alert = !st.win; }
       else if (gap < 0) { text = '¡TE HA ADELANTADO!'; alert = true; }
       else if (gap < 16) { text = '¡TE ALCANZA!'; alert = true; }
       else text = `VENTAJA +${lead.toFixed(1)} s`;
+      if (st.done && st.hudFrozen) return;
+      if (st.done) st.hudFrozen = true;
       ui.route(clamp(st.prog / finishS, 0, 1), clamp(tx.s / finishS, 0, 1), text, alert);
       ui.turbo(st.turbo);
       ctx.hud.set('tiempo', `⏱ ${fmtTime(st.t)}`, 'izq');
@@ -255,10 +263,10 @@ export default {
       },
       update(dt, realDt) {
         const t = engine.elapsed;
-        world.update(t);
+        world.update(t, dt);
         fxA.update(dt); fx.update(dt);
         const inp = ctx.input;
-        st.invuln -= dt; st.scrapeOff += dt; st.cheerT -= dt;
+        st.invuln -= dt; st.scrapeOff += dt; st.cheerT -= dt; st.frame = (st.frame || 0) + 1;
         fwd.set(Math.sin(st.velYaw), 0, Math.cos(st.velYaw));
 
         // ── coche del jugador ──
@@ -272,6 +280,7 @@ export default {
           const wantDrift = inp.down('drift') && st.speed > 12 && !braking;
           if (wantDrift && !st.drifting) { st.driftDir = Math.sign(steer) || Math.sign(angleDiff(st.velYaw, st.yaw)) * -1 || 0; st.driftT = 0; ctx.audio.sfx('whoosh', { vol: 0.5 }); }
           if (!wantDrift && st.drifting) {
+            if (st.driftT > 0.4) st.drifts++;
             if (st.driftT > 0.9) { st.miniT = 0.9; ctx.audio.sfx('boost', { vol: 0.6 }); ctx.shout('¡MINI TURBO!', { size: 'peque', color: '#c77dff' }); ctx.engine.shake(0.2); }
           }
           st.drifting = drifting = wantDrift;
@@ -332,7 +341,7 @@ export default {
         const landed = vertical(st, ground, dt);
         if (landed > 0.45 && st.running) {
           st.jumps++; ctx.engine.shake(0.45 + landed * 0.3); ctx.audio.sfx('crash', { vol: 0.5, pitch: 1.3 }); ctx.vibrate(40);
-          ctx.shout(landed > 0.9 ? `¡VUELO! ${landed.toFixed(1)} s` : '¡SALTO!', { size: 'peque', color: '#ffd166' });
+          ctx.shout(landed > 0.9 ? `¡VUELO DE ${landed.toFixed(1)} s!` : '¡QUÉ BOTE!', { size: 'peque', color: '#ffd166' });
           st.turbo = Math.min(3, st.turbo + 0.3); st.cheerT = 1.2;
           fxA.emit(16, tmpV.copy(pos).setY(st.y + 0.1), { colors: ['#ffd166', '#ff9f1c', '#fff'], velSpread: 7, vel: { x: 0, y: 2, z: 0 }, life: 0.5, size: 0.25, gravity: -12 });
           if (Math.random() < 0.35) say(ZHOU.jump);
@@ -353,15 +362,15 @@ export default {
         const right = tmpV2.set(-Math.cos(st.yaw), 0, Math.sin(st.yaw)); // derecha del coche
         const back = new THREE.Vector3(-Math.sin(st.yaw), 0, -Math.cos(st.yaw));
         if (st.brakeK > 0.4 && st.speed > 6) {
-          for (const s of [-1, 1]) fxA.emit(1, tmpV.copy(pos).addScaledVector(right, s * 0.6).addScaledVector(back, 1.9).setY(st.y + 0.72), { color: '#ff2d6f', vel: { x: 0, y: 0, z: 0 }, velSpread: 0.2, life: 0.35, size: 0.32, gravity: 0 });
+          if (st.frame % 2 === 0) for (const s of [-1, 1]) fxA.emit(1, tmpV.copy(pos).addScaledVector(right, s * 0.6).addScaledVector(back, 1.9).setY(st.y + 0.72), { color: '#ff2d6f', vel: { x: 0, y: 0, z: 0 }, velSpread: 0.1, life: 0.28, size: 0.2, gravity: 0 });
         }
         if (drifting && Math.abs(slip) > 0.12 && !st.air) {
           const charged = st.driftT > 0.9;
-          for (const s of [-1, 1]) fxA.emit(2, tmpV.copy(pos).addScaledVector(right, s * 0.86).addScaledVector(back, 1.2).setY(st.y + 0.1), { colors: charged ? ['#c77dff', '#e0aaff', '#ffffff'] : ['#ffd166', '#ff9f1c', '#fff3b0'], vel: { x: back.x * 4, y: 2.5, z: back.z * 4 }, velSpread: 3, life: 0.35, size: 0.2, gravity: -12 });
-          if (Math.random() < 0.3) fx.emit(1, tmpV.copy(pos).addScaledVector(back, 1.6).setY(st.y + 0.3), { color: '#6b5a80', vel: { x: 0, y: 1, z: 0 }, velSpread: 1, life: 0.7, size: 1.1, gravity: 1 });
+          if (st.frame % 2 === 0) for (const s of [-1, 1]) fxA.emit(1, tmpV.copy(pos).addScaledVector(right, s * 0.86).addScaledVector(back, 1.3).setY(st.y + 0.1), { colors: charged ? ['#c77dff', '#e0aaff', '#ffffff'] : ['#ffd166', '#ff9f1c', '#fff3b0'], vel: { x: back.x * 1.5, y: 1.6, z: back.z * 1.5 }, velSpread: 1.5, life: 0.22, size: 0.13, gravity: -10 });
+          if (Math.random() < 0.12) fx.emit(1, tmpV.copy(pos).addScaledVector(back, 1.6).setY(st.y + 0.3), { color: '#6b5a80', vel: { x: 0, y: 0.8, z: 0 }, velSpread: 0.6, life: 0.5, size: 0.7, gravity: 1 });
         }
         if (st.boostT > 0 || st.miniT > 0) {
-          fxA.emit(2, tmpV.copy(pos).addScaledVector(back, 2).addScaledVector(right, 0.5).setY(st.y + 0.42), { colors: ['#ffb703', '#c77dff', '#ff70a6'], vel: { x: back.x * 8, y: 0.5, z: back.z * 8 }, velSpread: 1.5, life: 0.3, size: 0.35, gravity: 0 });
+          fxA.emit(1, tmpV.copy(pos).addScaledVector(back, 2).addScaledVector(right, 0.5).setY(st.y + 0.42), { colors: ['#ffb703', '#c77dff', '#ff70a6'], vel: { x: back.x * 5, y: 0.4, z: back.z * 5 }, velSpread: 1, life: 0.22, size: 0.24, gravity: 0 });
           if (st.boostT > 0) for (let k = 0; k < 2; k++) {
             const side = (Math.random() - 0.5) * 12;
             fxA.emit(1, tmpV.copy(pos).addScaledVector(fwd, 10 + Math.random() * 6).addScaledVector(right, side).setY(st.y + 0.5 + Math.random() * 3.5), { color: Math.random() < 0.5 ? '#ffffff' : '#e0aaff', vel: { x: -fwd.x * 45, y: 0, z: -fwd.z * 45 }, velSpread: 0, life: 0.22, size: 0.14, gravity: 0 });
@@ -375,7 +384,8 @@ export default {
             if ((c.p.x - pos.x) ** 2 + (c.p.z - pos.z) ** 2 < 1.9) {
               c.alive = false; world.hideCrate(i); st.crates++;
               st.speed *= 0.95;
-              fx.emit(14, c.p, { colors: ['#ff8c1a', '#e63946', '#8ac926', '#ffd166'], vel: { x: fwd.x * 6, y: 5, z: fwd.z * 6 }, velSpread: 6, life: 1, size: 0.45, gravity: -14 });
+              world.throwFruit(c.p, fwd, st.speed);
+              fx.emit(5, c.p, { colors: ['#ffb347', '#ff6b6b'], vel: { x: fwd.x * 3, y: 3, z: fwd.z * 3 }, velSpread: 3, life: 0.5, size: 0.18, gravity: -12 });
               ctx.audio.sfx('hit', { vol: 0.5, pitch: 1.4 }); ctx.engine.shake(0.15);
               if (st.crates % 3 === 1) ctx.shout('¡FRUTA AL AIRE!', { size: 'peque', color: '#8ac926' });
             }
@@ -413,7 +423,15 @@ export default {
         // ── carrera: meta ──
         if (st.running && !st.done) {
           if (!st.hintShown && shortcuts[0] && shortcuts[0].sA - st.prog < 110 && st.prog < shortcuts[0].sA) {
-            st.hintShown = true; ctx.toast('Flechas rosas = <b>¡ATAJO!</b> Sigue recto 👉', 2600);
+            st.hintShown = true;
+          }
+          // aviso de atajo ~2 s antes de cada entrada
+          let warn = null;
+          if (R.main) for (let k = 0; k < shortcuts.length; k++) { const d = shortcuts[k].sA - st.qs; if (d > -3 && d < Math.max(30, st.speed * 2.3) && !st.scDone.has(k + 1)) { warn = k; break; } }
+          if (warn !== st.warn) {
+            st.warn = warn;
+            ui.warn(warn != null);
+            if (warn != null) ctx.audio.sfx('bell', { vol: 0.35, pitch: 1.4 });
           }
           if (st.prog >= finishS) finishRace(true);
           else if (tx.s >= finishS) finishRace(false);
@@ -442,12 +460,14 @@ export default {
           camera.lookAt(pos.x - Math.sin(st.yaw) * 4, pos.y + 1.2, pos.z - Math.cos(st.yaw) * 4);
           camYaw = st.yaw;
         } else if (st.done && st.endT > 0.4) {
+          // llegada: cámara delante del coche, en el lado de tierra, mirando al coche con el ferry y los fuegos detrás
           const a = main.at(Math.min(main.length, finishS + 10));
           const focus = st.win ? pos : taxi.group.position;
           const portrait = innerHeight > innerWidth;
-          camPos.copy(focus).addScaledVector(a.n, portrait ? -15 : -12).addScaledVector(a.t, portrait ? 16 : 13); camPos.y = focus.y + 4.5;
-          camera.position.lerp(camPos, 1 - Math.exp(-realDt * 1.6));
-          camLook.copy(focus).addScaledVector(a.n, 7).addScaledVector(a.t, -2); camLook.y = focus.y + (portrait ? 11 : 6);
+          const dd = portrait ? 15 : 12;
+          camPos.copy(focus).addScaledVector(a.t, dd).addScaledVector(a.n, -5.5); camPos.y = focus.y + (portrait ? 3.2 : 2.8);
+          camera.position.lerp(camPos, 1 - Math.exp(-realDt * 2.2));
+          camLook.copy(focus).addScaledVector(a.n, 3.5).addScaledVector(a.t, -3); camLook.y = focus.y + (portrait ? 5.5 : 3.2);
           camera.lookAt(camLook);
         } else {
           camYaw += angleDiff(camYaw, st.yaw + slip * 0.45) * (1 - Math.exp(-dt * 5));
@@ -466,16 +486,22 @@ export default {
 
         // retrovisor: solo cuando el taxi va cerca por detrás
         const gap = st.prog - tx.s;
-        const mirrorOn = st.running && !st.done && gap > -2 && gap < 95 && engine.qualityName !== 'baja' && !engine.battery;
-        st.mirror = mirrorOn;
-        ui.showMirror(mirrorOn);
+        let mirrorOn = st.running && !st.done && gap > 2 && gap < 55 && engine.qualityName !== 'baja' && !engine.battery;
         if (mirrorOn) {
           const r = ui.mirrorRect;
           mirrorCam.aspect = r.w / r.h; mirrorCam.updateProjectionMatrix();
           const yb = new THREE.Vector3(-Math.sin(st.yaw), 0, -Math.cos(st.yaw));
           mirrorCam.position.set(pos.x + yb.x * 2.3, st.y + 1.35, pos.z + yb.z * 2.3);
           mirrorCam.lookAt(pos.x + yb.x * 30, st.y + 0.6, pos.z + yb.z * 30);
+          mirrorCam.updateMatrixWorld();
+          tmpV.copy(taxi.group.position); tmpV.y += 1; tmpV.project(mirrorCam);
+          mirrorOn = tmpV.z < 1 && Math.abs(tmpV.x) < 0.9 && Math.abs(tmpV.y) < 0.95;
         }
+        // histéresis: que no parpadee
+        st.mirrorT = mirrorOn ? 0.6 : (st.mirrorT || 0) - realDt;
+        mirrorOn = st.mirrorT > 0 && st.running && !st.done;
+        st.mirror = mirrorOn;
+        ui.showMirror(mirrorOn);
         // burbuja del taxista
         tmpV.copy(taxi.group.position); tmpV.y += 2.8;
         tmpV.project(camera);
@@ -488,8 +514,8 @@ export default {
           running: st.running, done: st.done, win: st.win, t: st.t, prog: st.prog, finish: finishS, progress: st.prog / finishS,
           speed: st.speed, lateral: st.lat, road: st.road, onShortcut: st.road > 0, shortcuts: st.shortcuts, turbo: st.turbo,
           boost: st.boostT > 0, drifting, combo: st.combo, maxCombo: st.maxCombo, scrapes: st.scrapes, jumps: st.jumps, crashes: st.crashes,
-          taxiS: tx.s, taxiV: tx.v, gap, lead: gap / Math.max(tx.v, 12), air: st.air, mirror: mirrorOn, crates: st.crates,
-          fantasma: !!ghostCar, kind: kindAt(st.prog), tipo: roads[st.road].sc ? roads[st.road].sc.type : 'principal',
+          taxiS: tx.s, taxiV: tx.v, gap, lead: st.done ? st.lead : leadNow(), air: st.air, mirror: mirrorOn, crates: st.crates,
+          fantasma: !!ghostCar, atajosS: shortcuts.map((sc) => sc.sA), aviso: st.warn != null, kind: kindAt(st.prog), tipo: roads[st.road].sc ? roads[st.road].sc.type : 'principal',
         });
         if (window.__macaoBot) {
           const look = routePoint(9 + st.speed * 0.32);
@@ -528,7 +554,7 @@ export default {
       const running = st.running && !st.done;
       const gap = st.prog - tx.s;
       // velocidad: curva que viene + goma elástica suave
-      let target = 28.6 + clamp((gap - 22) * 0.04, -2.6, 3.4);
+      let target = zhouBase + clamp((gap - 22) * 0.04, -2.6, zhouRubber);
       if (!running) target = st.done ? (tx.finished ? 0 : 24) : 0;
       target = Math.min(target, vAhead[idxAt(tx.s)]);
       // autobuses delante en su carril
@@ -588,17 +614,18 @@ export default {
 
     function fireworks() {
       const a = main.at(finishS + 10);
-      const p = a.p.clone().addScaledVector(a.n, 18 + Math.random() * 30).addScaledVector(a.t, (Math.random() - 0.3) * 60);
-      p.y += 22 + Math.random() * 22;
+      const p = (st.win ? pos : taxi.group.position).clone().addScaledVector(a.t, -(18 + Math.random() * 30)).addScaledVector(a.n, 4 + Math.random() * 26);
+      p.y += 16 + Math.random() * 18;
       const cols = [['#c77dff', '#e0aaff', '#ffffff'], ['#ffb703', '#ffd166', '#ffffff'], ['#ff70a6', '#ffb703', '#c77dff']][Math.floor(Math.random() * 3)];
-      fxA.emit(70, p, { colors: cols, velSpread: 26, vel: { x: 0, y: 1, z: 0 }, life: 1.5, size: 0.9, gravity: -5, spread: 1 });
+      fxA.emit(60, p, { colors: cols, velSpread: 20, vel: { x: 0, y: 1, z: 0 }, life: 1.5, size: 0.9, gravity: -5, spread: 1 });
       ctx.audio.sfx('firework', { vol: 0.6 });
     }
 
     function finishRace(win) {
       st.done = true; st.win = win; st.running = false; st.endT = 0;
       st.drifting = false; st.boostT = 0;
-      st.lead = win ? Math.max(0, (finishS - tx.s) / Math.max(tx.v, 12)) : 0;
+      st.lead = win ? Math.max(0, leadNow()) : 0;
+      ctx.input.hideTouch(); ui.warn(false);
       ui.showMirror(false);
       if (win) {
         engine.slowmo(1.1, 0.3);
@@ -616,11 +643,11 @@ export default {
     function callFinish() {
       const win = st.win;
       const lead = st.lead;
-      const stars = !win ? 0 : 1 + (lead >= 3 ? 1 : 0) + (lead >= 8 && st.shortcuts >= 3 ? 1 : 0);
-      const score = Math.round((win ? 1500 : 300 * (st.prog / finishS)) + lead * 120 + st.shortcuts * 300 + st.maxCombo * 40 + st.crates * 25 + st.jumps * 60 + st.nearMiss * 80);
+      const stars = !win ? 0 : 1 + (lead >= 3 ? 1 : 0) + (lead >= 9 && st.shortcuts >= 3 ? 1 : 0);
+      const score = Math.round((win ? 1500 : 300 * (st.prog / finishS)) + lead * 120 + st.shortcuts * 300 + st.drifts * 40 + st.crates * 25 + st.jumps * 60 + st.nearMiss * 80);
       ctx.finish({
         win, stars, score, time: st.t, delay: 200,
-        stats: [['Tiempo', fmtTime(st.t)], ['Ventaja', win ? `${lead.toFixed(1)} s` : '—'], ['Atajos', `${st.shortcuts}/4`], ['Chispas seguidas', st.maxCombo], ['Saltos', st.jumps]],
+        stats: [['Tiempo', fmtTime(st.t)], ['Ventaja', win ? `${lead.toFixed(1)} s` : '—'], ['Atajos', `${st.shortcuts}/4`], ['Saltos', st.jumps], ['Derrapes', st.drifts], ['Por los pelos', st.nearMiss]],
         moreStats: { atajos: st.shortcuts, chispas: st.scrapes },
         shareText: win ? `${lead.toFixed(1)} s de ventaja al taxi en Macao` : 'una persecución de neón en Macao',
         title: win ? (stars === 3 ? '¡Escapada de neón!' : '¡Llegáis al ferry!') : 'El Taxista Zhou gana…',

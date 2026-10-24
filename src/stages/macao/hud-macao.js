@@ -19,6 +19,9 @@ const CSS = `
 .mc-bur{position:fixed;z-index:4;max-width:230px;background:#fff8ec;color:#1a1036;border:3px solid #1a1036;border-radius:16px 16px 16px 4px;padding:4px 10px 6px;font:700 14px/1.15 'Baloo 2',sans-serif;box-shadow:0 4px 0 #1a1036;transition:opacity .2s;white-space:normal}
 .mc-bur b{display:block;font:10px Bungee,sans-serif;color:#9b5de5;letter-spacing:.5px}
 .mc-oculto{opacity:0 !important}
+.mc-aviso{font-size:17px;color:#fff;background:linear-gradient(90deg,#ff4fd8,#9b5de5);padding:5px 14px;border-radius:12px;border:3px solid #1a1036;box-shadow:0 0 14px #ff4fd8;animation:mcLat .3s infinite alternate;letter-spacing:.5px}
+.mc-avisobox{white-space:nowrap;position:fixed;left:50%;transform:translateX(-50%);z-index:3;font-family:Bungee,sans-serif;transition:opacity .15s}
+@media (max-width:430px){.mc-aviso{font-size:13px;padding:4px 10px}}
 .hud.tema-macao .hud-item{background:rgba(30,10,58,.78);border-color:rgba(199,125,255,.45)}
 @media (max-width:430px){.mc-ruta{min-width:150px}.hud.tema-macao .hud-izq .hud-item{font-size:15px;padding:4px 9px}.mc-gap{font-size:11px}}
 `;
@@ -31,6 +34,7 @@ export function makeMacaoUI(hud) {
   const mirror = el('mc-espejo mc-oculto', '<span>RETROVISOR</span>');
   const bubble = el('mc-bur mc-oculto', '<b>TAXISTA ZHOU</b><span></span>');
   const bubbleTxt = bubble.querySelector('span');
+  const warnEl = el('mc-avisobox mc-oculto', '<div class="mc-aviso">↱ ¡ATAJO! SIGUE RECTO</div>');
 
   const ruta = hud.set('ruta', '<div class="mc-linea"><div class="mc-hecho"></div><i class="mc-taxi"></i><i class="mc-yo"></i><span class="mc-meta">⚓</span></div><div class="mc-gap">¡A POR EL FERRY!</div>', 'centro');
   ruta.classList.add('mc-ruta');
@@ -40,11 +44,16 @@ export function makeMacaoUI(hud) {
   const pips = [...turbo.querySelectorAll('i')];
 
   let mirrorRect = { x: 0, y: 0, w: 0, h: 0 };
+  // centrado bajo la barra de progreso y sin pisar la columna izquierda del HUD (crono, atajos, turbo)
   function layout() {
     const W = innerWidth;
     const w = Math.round(Math.min(W * 0.52, 300)), h = Math.round(w * 0.34);
-    const y = W < 500 ? 96 : 92;
-    mirrorRect = { x: Math.round((W - w) / 2), y, w, h };
+    const x0 = Math.round((W - w) / 2);
+    let y = (ruta.getBoundingClientRect().bottom || 70) + 12;
+    const izq = ruta.closest('.hud') && ruta.closest('.hud').querySelector('.hud-izq');
+    if (izq) { const r = izq.getBoundingClientRect(); if (r.right > x0 - 6) y = Math.max(y, r.bottom + 12); }
+    warnEl.style.top = Math.round(Math.max(innerHeight * 0.27, y + h + 22)) + 'px';
+    y = Math.round(y); mirrorRect = { x: x0, y, w, h };
     Object.assign(mirror.style, { left: mirrorRect.x - 3 + 'px', top: y - 3 + 'px', width: w + 6 + 'px', height: h + 6 + 'px' });
   }
   layout();
@@ -53,7 +62,8 @@ export function makeMacaoUI(hud) {
   let bubbleT = 0, lastGap = '', lastCls = '';
   return {
     get mirrorRect() { return mirrorRect; },
-    showMirror(on) { mirror.classList.toggle('mc-oculto', !on); },
+    warn(on) { if (on) layout(); warnEl.classList.toggle('mc-oculto', !on); },
+    showMirror(on) { if (on && mirror.classList.contains('mc-oculto')) layout(); mirror.classList.toggle('mc-oculto', !on); },
     route(pYo, pTaxi, gapText, alert) {
       yo.style.left = (pYo * 100).toFixed(1) + '%';
       tx.style.left = (pTaxi * 100).toFixed(1) + '%';
@@ -76,7 +86,7 @@ export function makeMacaoUI(hud) {
       const cx = Math.max(8, Math.min(innerWidth - bw - 8, x - bw * 0.2));
       bubble.style.left = cx + 'px'; bubble.style.top = Math.max(70, y) + 'px';
     },
-    dispose() { removeEventListener('resize', layout); style.remove(); mirror.remove(); bubble.remove(); },
+    dispose() { removeEventListener('resize', layout); style.remove(); mirror.remove(); warnEl.remove(); bubble.remove(); },
   };
 }
 

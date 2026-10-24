@@ -254,7 +254,7 @@ export function buildWorld({ scene, rng, main, kindAt, shortcuts, events, q, mak
     for (const sd of [-1, 1]) {
       let s = R.main ? 0 : 2;
       while (s < R.road.length) {
-        const wB = rng.range(7, 11);
+        const wB = rng.range(8, 10.2);
         const sc = s + wB / 2;
         s += wB + 0.4;
         if (sc >= R.road.length) break;
@@ -271,7 +271,7 @@ export function buildWorld({ scene, rng, main, kindAt, shortcuts, events, q, mak
           if (inCorridor(x, z, R.sw - 0.1) || inExcl(x, z)) { ok = false; break; }
         }
         if (!ok) continue;
-        const hB = kind === 'pier' ? rng.range(7, 9) : rng.range(9, 17);
+        const hB = kind === 'pier' ? rng.range(7, 9) : rng.range(12, 15.5);
         const vi = Math.floor(rng() * 3);
         buildings[vi].push({ c, yaw: Math.atan2(a.t.x, a.t.z), w: wB, h: hB, color: pastel[Math.floor(rng() * pastel.length)] });
         // neón en banderola (sobresale de la fachada hacia la calle)
@@ -331,6 +331,37 @@ export function buildWorld({ scene, rng, main, kindAt, shortcuts, events, q, mak
 
   // ── mercado cubierto, escaleras y callejones ──
   const crates = [];
+  const lanternMat = new THREE.MeshStandardMaterial({ color: '#ff5a4f', emissive: '#d0342c', emissiveIntensity: 0.9, roughness: 0.6 });
+  // fruta voladora del mercado: naranjas, sandías y mangos de verdad (instanciados)
+  const melonTex = canvasTexture(64, 32, (c, W, H) => { for (let x = 0; x < W; x += 8) { c.fillStyle = (x / 8) % 2 ? '#1f6b2a' : '#4caf50'; c.fillRect(x, 0, 8, H); } });
+  const FRUITS = [
+    { geo: new THREE.SphereGeometry(0.2, 10, 8), mat: new THREE.MeshStandardMaterial({ color: '#ff9a1f', roughness: 0.5 }), r: 0.2 },
+    { geo: new THREE.SphereGeometry(0.34, 12, 8).scale(1, 0.85, 1.3), mat: new THREE.MeshStandardMaterial({ map: melonTex, roughness: 0.45 }), r: 0.3 },
+    { geo: new THREE.SphereGeometry(0.19, 10, 8).scale(0.8, 0.75, 1.2), mat: new THREE.MeshStandardMaterial({ color: '#ffc233', emissive: '#7a2a00', emissiveIntensity: 0.25, roughness: 0.5 }), r: 0.16 },
+  ];
+  const flying = [];
+  FRUITS.forEach((f) => { f.mesh = new THREE.InstancedMesh(f.geo, f.mat, 24); f.mesh.frustumCulled = false; f.free = []; for (let i = 0; i < 24; i++) { f.free.push(i); tmp.position.set(0, -60, 0); tmp.scale.setScalar(0.001); tmp.updateMatrix(); f.mesh.setMatrixAt(i, tmp.matrix); } scene.add(f.mesh); });
+  function throwFruit(p, fwd, speed) {
+    for (let k = 0; k < 6; k++) {
+      const f = FRUITS[k % 3]; if (!f.free.length) continue;
+      const i = f.free.pop();
+      const side = new THREE.Vector3(-fwd.z, 0, fwd.x);
+      flying.push({ f, i, p: p.clone(), g: p.y - 0.45 + f.r, v: fwd.clone().multiplyScalar(speed * 0.45 + Math.random() * 4).addScaledVector(side, (Math.random() - 0.5) * 7).setY(4 + Math.random() * 4), rot: new THREE.Euler(Math.random() * 3, Math.random() * 3, 0), spin: (Math.random() - 0.5) * 14, life: 2.4 });
+    }
+  }
+  function updateFruit(dt) {
+    if (!flying.length) return;
+    for (let k = flying.length - 1; k >= 0; k--) {
+      const o = flying[k];
+      o.life -= dt; o.v.y -= 20 * dt; o.p.addScaledVector(o.v, dt);
+      if (o.p.y < o.g) { o.p.y = o.g; o.v.y = Math.abs(o.v.y) * 0.4; o.v.x *= 0.7; o.v.z *= 0.7; o.spin *= 0.7; }
+      o.rot.x += o.spin * dt; o.rot.z += o.spin * 0.6 * dt;
+      const sc = o.life < 0.3 ? Math.max(0.001, o.life / 0.3) : 1;
+      tmp.position.copy(o.p); tmp.rotation.copy(o.rot); tmp.scale.setScalar(sc); tmp.updateMatrix(); o.f.mesh.setMatrixAt(o.i, tmp.matrix);
+      if (o.life <= 0) { o.f.free.push(o.i); flying.splice(k, 1); }
+    }
+    for (const f of FRUITS) f.mesh.instanceMatrix.needsUpdate = true;
+  }
   const vendors = [];
   shortcuts.forEach((sc) => {
     const r = sc.road, hw = r.width / 2;
@@ -346,12 +377,12 @@ export function buildWorld({ scene, rng, main, kindAt, shortcuts, events, q, mak
           posts.push(a.p.clone().addScaledVector(a.n, sd * (hw + 1.9)));
           if ((s / 6) % 2 < 1) stalls.push({ p: a.p.clone().addScaledVector(a.n, sd * (hw + 0.85)), t: a.t, sd });
         }
-        lanterns.push(a.p.clone().setY(a.p.y + 4.4));
+        lanterns.push(a.p.clone().setY(a.p.y + 4.7));
       }
       const pm = new THREE.InstancedMesh(new THREE.BoxGeometry(0.22, 5.4, 0.22).translate(0, 2.7, 0), M.iron, posts.length);
       posts.forEach((p, i) => { tmp.position.copy(p); tmp.rotation.set(0, 0, 0); tmp.scale.set(1, 1, 1); tmp.updateMatrix(); pm.setMatrixAt(i, tmp.matrix); });
       const sm = new THREE.InstancedMesh(new THREE.BoxGeometry(1.1, 0.9, 2.6).translate(0, 0.45, 0), flat('#7a4a2a'), stalls.length);
-      const fruitM = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.42, 0), flat('#ff8c1a'), stalls.length * 3);
+      const fruitM = new THREE.InstancedMesh(new THREE.SphereGeometry(0.3, 10, 8), new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.55 }), stalls.length * 3);
       const aw = new THREE.InstancedMesh(new THREE.BoxGeometry(1.6, 0.08, 2.8), new THREE.MeshStandardMaterial({ map: stripeTex('#ffb703', '#7b2cbf'), roughness: 0.8 }), stalls.length);
       const fc = ['#ff8c1a', '#e63946', '#8ac926', '#ffd166'];
       stalls.forEach((st, i) => {
@@ -360,7 +391,7 @@ export function buildWorld({ scene, rng, main, kindAt, shortcuts, events, q, mak
         tmp.position.copy(st.p); tmp.position.y += 2.5; tmp.rotation.set(0, yaw, st.sd * 0.35); tmp.updateMatrix(); aw.setMatrixAt(i, tmp.matrix);
         for (let k = 0; k < 3; k++) { tmp.position.copy(st.p).addScaledVector(st.t, (k - 1) * 0.8); tmp.position.y += 1.1; tmp.rotation.set(0, k, 0); tmp.updateMatrix(); fruitM.setMatrixAt(i * 3 + k, tmp.matrix); fruitM.setColorAt(i * 3 + k, col.set(fc[(i + k) % 4])); }
       });
-      const lm = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.24, 0.24, 0.5, 8), glow('#ff5a4f', 1.6), lanterns.length);
+      const lm = new THREE.InstancedMesh(new THREE.SphereGeometry(0.26, 10, 8).scale(1, 0.8, 1), lanternMat, lanterns.length);
       lanterns.forEach((p, i) => { tmp.position.copy(p); tmp.rotation.set(0, 0, 0); tmp.updateMatrix(); lm.setMatrixAt(i, tmp.matrix); });
       scene.add(pm, sm, aw, fruitM, lm);
       // cajas de fruta en el camino (se rompen sin hacer daño a nadie)
@@ -394,8 +425,8 @@ export function buildWorld({ scene, rng, main, kindAt, shortcuts, events, q, mak
       // callejón: farolillos colgando
       const ls = [];
       for (let s = 8; s < r.length - 4; s += 3.5) { const a = r.at(s); ls.push({ p: a.p.clone().addScaledVector(a.n, ((s / 3.5) % 2 < 1 ? 1 : -1) * 1.6).setY(a.p.y + 4.8), c: (s / 3.5) % 3 < 1 ? '#ff5a4f' : '#ffb703' }); }
-      const lm = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.15, 0.15, 0.34, 8), new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false }), ls.length);
-      ls.forEach((l, i) => { tmp.position.copy(l.p); tmp.rotation.set(0, 0, 0); tmp.updateMatrix(); lm.setMatrixAt(i, tmp.matrix); lm.setColorAt(i, col.set(l.c).multiplyScalar(1.15)); });
+      const lm = new THREE.InstancedMesh(new THREE.SphereGeometry(0.22, 10, 8).scale(1, 0.8, 1), new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 0.55, roughness: 0.6 }), ls.length);
+      ls.forEach((l, i) => { tmp.position.copy(l.p); tmp.rotation.set(0, 0, 0); tmp.updateMatrix(); lm.setMatrixAt(i, tmp.matrix); lm.setColorAt(i, col.set(l.c)); });
       scene.add(lm);
     }
   });
@@ -488,13 +519,14 @@ export function buildWorld({ scene, rng, main, kindAt, shortcuts, events, q, mak
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const stars = new THREE.Points(g, new THREE.PointsMaterial({ color: '#f3e8ff', size: 1.6, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.85 }));
     stars.frustumCulled = false; stars.userData.followCamera = true; scene.add(stars);
-    const moon = new THREE.Mesh(new THREE.CircleGeometry(30, 24), new THREE.MeshBasicMaterial({ color: '#fff3d6', fog: false }));
-    moon.position.set(-420, 380, -560); moon.lookAt(0, 0, 0); moon.userData.followCamera = true; scene.add(moon);
+    const moon = new THREE.Mesh(new THREE.CircleGeometry(24, 28), new THREE.MeshBasicMaterial({ color: '#fff3d6', fog: false }));
+    moon.position.set(420, 250, -640); moon.lookAt(0, 0, 0); moon.userData.followCamera = true; scene.add(moon);
     anim.followers = [stars, moon];
   }
 
   return {
-    update(t) { for (const f of anim) f(t); for (const v of vendors) v.pose('wave', t); },
+    update(t, dt = 0) { for (const f of anim) f(t); for (const v of vendors) v.pose('wave', t); updateFruit(dt); },
+    throwFruit,
     crates, crateMesh,
     hideCrate(i) { tmp.position.set(0, -50, 0); tmp.scale.setScalar(0.001); tmp.updateMatrix(); crateMesh.setMatrixAt(i, tmp.matrix); crateMesh.instanceMatrix.needsUpdate = true; },
     followers: anim.followers,
