@@ -102,7 +102,7 @@ for (const pass of passes) {
     }
     const steer = Math.max(-1, Math.min(1, -diff * 2.6));
     await steerTo(steer);
-    await hold('drift', Math.abs(diff) > 0.55 && p.v > 9 && dist < 25);
+    await hold('drift', Math.abs(diff) > 0.6 && p.v > 9);
     // turbo en recta si hay carga
     if (s.turbo >= 0.34 && Math.abs(diff) < 0.12 && dist > 30 && now - turboT > 2500) { turboT = now; await hold('turbo', true); await sleep(60); await hold('turbo', false); }
     if (shots && !shotAction && s.tiempo < 135) { shotAction = true; await page.screenshot({ path: `pruebas/capturas/bangkok-${tag}-accion.png` }); }

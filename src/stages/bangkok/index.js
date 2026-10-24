@@ -14,7 +14,7 @@ const SHIFT = 150;          // duración del turno (s)
 const dec = (v) => v.toFixed(1).replace('.', ',');
 const R_TUK = 1.3;          // radio de choque del tuk-tuk
 const STOP_R = 5.2;         // radio del círculo de parada
-const MAX_V = 19.5, TURBO_V = 32;
+const MAX_V = 18, TURBO_V = 31;
 
 export default {
   id: 'bangkok',
@@ -155,6 +155,8 @@ export default {
     window.__ruta = window.__ruta || {};
     window.__ruta.etapa = E;
     // solo para pruebas/capturas: mover el tuk-tuk
+    E.skip = (left) => { st.t = SHIFT - left; };
+    E.farolillo = () => { const l = lans.find((x) => x.on); return l ? { x: l.x, z: l.z } : null; };
     E.debug = () => ({ sparks: sparks.life.filter((l) => l > 0).length, spray: spray.life.filter((l) => l > 0).length, boost: st.boostT, max: sparks.max, vis: sparks.points.visible, inScene: !!sparks.points.parent });
     E.teleport = (x, z, yaw = st.yaw) => { st.x = x; st.z = z; st.yaw = yaw; st.vx = Math.sin(yaw) * 10; st.vz = Math.cos(yaw) * 10; camYaw = yaw; camera.position.set(x - Math.sin(yaw) * 7, 3.2, z - Math.cos(yaw) * 7); };
 
@@ -247,7 +249,8 @@ export default {
       st.rush = st.idx === st.rushIdx; // un cliente por turno va con PRISA y paga doble
       hudB.rush(st.rush);
       const dest = destOf(t);
-      const p = randomCurb(st.idx === 1 ? 35 : 45, st.idx === 1 ? 85 : 135, dest);
+      // el primero espera a la vista, en la misma calle de salida (se aprende sin girar)
+      const p = st.idx === 1 ? sidePoint(4, 3, 's', 0.35) : randomCurb(45, 135, dest);
       st.pick = p; st.dest = dest;
       setTarget(p, '#ff3fa4');
       // personajes esperando en la acera
@@ -263,7 +266,7 @@ export default {
       });
       tuk.setBusy(false);
       hudB.card(t, 'pick');
-      if (!st.hintDone.pick) { st.hintDone.pick = true; st.pendingHint = 'Sigue la flecha rosa y para dentro del círculo: el cliente sube solo.'; }
+      if (!st.hintDone.pick) { st.hintDone.pick = true; st.pendingHint = 'Sigue la flecha y las flechas de luz del suelo hasta el círculo: el cliente sube solo.'; }
       return true;
     }
     function setTarget(p, color) {
@@ -319,7 +322,7 @@ export default {
           tuk.body.add(m);
           st.seated.push({ obj: m });
         });
-        st.mode = 'ride';
+        st.mode = 'ride'; st.pickups = (st.pickups || 0) + 1; st.help = false; st.helpOn = false;
         setTarget(st.dest, '#00e5ff');
         const len = pathLen(st.x, st.z, st.path);
         st.tripMax = Math.round((len / 11.5 + 8) * (st.rush ? 0.85 : 1)); st.tripLeft = st.tripMax; st.tripCrash = 0;
@@ -386,8 +389,8 @@ export default {
     }
     function finish() {
       if (st.finished) return; st.finished = true;
-      const d = st.delivered, win = d >= 3;
-      const stars = !win ? 0 : 1 + (d >= 5 ? 1 : 0) + (d >= 7 || (d >= 6 && st.money >= 1600) ? 1 : 0);
+      const d = st.delivered, win = d >= 2;
+      const stars = !win ? 0 : 1 + (d >= 4 ? 1 : 0) + (d >= 6 || (d >= 5 && st.money >= 1400) ? 1 : 0);
       st.stars = stars;
       if (win && !st.brakeUsed) ctx.sticker('sin-frenar');
       E.terminado = true; E.estrellas = stars;
@@ -397,7 +400,7 @@ export default {
         moreStats: { turistas: d },
         shareText: `${d} turistas y ${st.money} ฿ en el tuk-tuk de Bangkok`,
         title: win ? (stars === 3 ? '¡Taxista del año!' : '¡Turno completado!') : 'Somchai no está contento…',
-        lines: [stars === 0 ? '1★: entrega 3 turistas' : stars === 1 ? '2★: entrega 5 turistas' : stars === 2 ? '3★: 7 turistas (o 6 y 1600 ฿)' : '¡Tres estrellas! Taxista de leyenda.', win ? `Somchai: «${stars === 3 ? 'Mi tuk-tuk nunca había ido tan rápido. ¡Os lo regalo! Es broma.' : 'Buen turno. El tuk-tuk sigue entero… casi.'}»` : 'Somchai: «Mañana lo intentamos otra vez, ¿vale?»'],
+        lines: [stars === 0 ? '1★: entrega 2 turistas' : stars === 1 ? '2★: entrega 4 turistas' : stars === 2 ? '3★: 6 turistas (o 5 y 1400 ฿)' : '¡Tres estrellas! Taxista de leyenda.', win ? `Somchai: «${stars === 3 ? 'Mi tuk-tuk nunca había ido tan rápido. ¡Os lo regalo! Es broma.' : 'Buen turno. El tuk-tuk sigue entero… casi.'}»` : 'Somchai: «Mañana lo intentamos otra vez, ¿vale?»'],
         delay: 300,
       });
     }
@@ -476,6 +479,44 @@ export default {
       return x > c.x0 - pad && x < c.x1 + pad && z > c.z0 - pad && z < c.z1 + pad;
     };
     const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), tmpColor = new THREE.Color();
+
+    // ───────── cinta GPS de neón: flechas en el suelo por la calzada a lo largo de la ruta ─────────
+    const NCH = 24, CH_GAP = 3.3;
+    const chSh = new THREE.Shape();
+    chSh.moveTo(0, 1.0); chSh.lineTo(1.35, -0.45); chSh.lineTo(0.55, -0.45); chSh.lineTo(0, 0.12); chSh.lineTo(-0.55, -0.45); chSh.lineTo(-1.35, -0.45); chSh.closePath();
+    const chGeo = new THREE.ShapeGeometry(chSh); chGeo.rotateX(Math.PI / 2);
+    const ribbonMat = new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4 });
+    const ribbon = new THREE.InstancedMesh(chGeo, ribbonMat, NCH);
+    ribbon.frustumCulled = false; ribbon.renderOrder = 3; scene.add(ribbon);
+    const chObj = new THREE.Object3D(), chCol = new THREE.Color(), chBase = new THREE.Color();
+    const poly = [];
+    function updateRibbon(t) {
+      // la cinta empieza en el eje de la calle donde estás y sigue la ruta del minimapa
+      const L = locate(st.x, st.z);
+      poly.length = 0;
+      if (L.node) poly.push([st.x, st.z]);
+      else if (L.a[0] === L.b[0]) poly.push([line(L.a[0]), st.z]);
+      else poly.push([st.x, line(L.a[1])]);
+      for (const p of st.path) poly.push(p);
+      chBase.set(st.mode === 'ride' ? '#00e5ff' : '#ff3fa4');
+      const phase = (t * 7) % CH_GAP;
+      let seg = 0, segStart = 0;
+      const segLen = (k) => Math.hypot(poly[k + 1][0] - poly[k][0], poly[k + 1][1] - poly[k][1]);
+      for (let k = 0; k < NCH; k++) {
+        const d = 3 + phase + k * CH_GAP;
+        while (seg < poly.length - 1 && d > segStart + segLen(seg)) { segStart += segLen(seg); seg++; }
+        if (seg >= poly.length - 1) { chObj.scale.setScalar(0); chObj.updateMatrix(); ribbon.setMatrixAt(k, chObj.matrix); continue; }
+        const [ax, az] = poly[seg], [bx, bz] = poly[seg + 1], l = segLen(seg) || 1, u = (d - segStart) / l;
+        chObj.position.set(ax + (bx - ax) * u, 0.07, az + (bz - az) * u);
+        chObj.rotation.set(0, Math.atan2(bx - ax, bz - az), 0);
+        chObj.scale.setScalar(1);
+        chObj.updateMatrix(); ribbon.setMatrixAt(k, chObj.matrix);
+        const fade = clamp(1 - d / 80, 0, 1) * clamp((d - 2) / 4, 0, 1);
+        ribbon.setColorAt(k, chCol.copy(chBase).multiplyScalar(fade * (st.help ? 2.4 : 1.7)));
+      }
+      ribbon.instanceMatrix.needsUpdate = true; if (ribbon.instanceColor) ribbon.instanceColor.needsUpdate = true;
+      ribbon.visible = st.phase === 'drive' || st.phase === 'board';
+    }
 
     // ───────── farolillos de la suerte: flotan sobre las calles, +10 ฿ y algo de turbo ─────────
     const NL = 30;
@@ -563,8 +604,9 @@ export default {
           }
           st.boostT = Math.max(0, st.boostT - dt);
           const boosting = st.boostT > 0;
-          const inStop = tg && dTarget < STOP_R && (!boosting || Math.abs(vf) < 20);
-          if (tg && dTarget < STOP_R && !inStop && !st.slowWarn) { st.slowWarn = true; compiSay(COMPI.slow, true); }
+          const stopR = STOP_R * (st.help ? 1.5 : 1);
+          const inStop = tg && dTarget < stopR && (!boosting || Math.abs(vf) < 20);
+          if (tg && dTarget < stopR && !inStop && !st.slowWarn) { st.slowWarn = true; compiSay(COMPI.slow, true); }
           if (dTarget > STOP_R + 3) st.slowWarn = false;
           const maxF = boosting ? TURBO_V : MAX_V;
           if (inStop) { vf *= Math.exp(-5.5 * dt); vs *= Math.exp(-5.5 * dt); }
@@ -578,7 +620,7 @@ export default {
           if (drifting) vf *= Math.exp(-0.1 * dt);
           if (drifting && !st.wasDrift) { st.yaw -= steer * 0.12; audio.sfx('whoosh', { vol: 0.4, pitch: 0.7 }); }
           const sp = Math.abs(vf);
-          const steerK = (0.35 + 0.65 * clamp(sp / 6, 0, 1)) * (drifting ? 2.75 : 2.05) * (sp > 24 ? 0.82 : 1); // gira cerrado aunque vaya despacio
+          const steerK = (0.35 + 0.65 * clamp(sp / 6, 0, 1)) * (drifting ? 2.95 : 2.4) * (sp > 24 ? 0.8 : 1); // gira cerrado aunque vaya despacio
           st.vx = fx * vf + sx * vs; st.vz = fz * vf + sz * vs;
           st.yaw -= steer * steerK * dt * (vf < -0.3 ? -1 : 1);
           // derrape: carga turbo y cuenta para la pegatina
@@ -615,6 +657,27 @@ export default {
               if (st.chatT <= 0 && !hudB.talking) { st.chatT = 8 + Math.random() * 3; const t = st.cur; say(t, t.ride[st.chatI++ % t.ride.length], 3400); }
             }
           } else st.hurrySaid = false;
+          // ayuda para remontar: sin recoger a nadie a los 45 s, o 25 s de viaje sin llegar
+          const needHelp = (st.mode === 'pick' && !st.pickups && st.t > 45) || (st.mode === 'ride' && st.cur && st.tripMax - st.tripLeft > 25);
+          if (needHelp && !st.help) { st.help = true; compiSay(['¡Te guío yo! Sigue las flechas del suelo.'], true); st.helpT = 3; hudB.hint('🧭 Sigue las flechas de luz del suelo · círculo más grande', 3500); }
+          if (!needHelp) st.help = false;
+          if (st.help) {
+            st.helpT -= dt;
+            if (st.helpT <= 0 && !hudB.talking) {
+              st.helpT = 4.5;
+              const gx = st.guide[0] - st.x, gz = st.guide[1] - st.z, gd = Math.hypot(gx, gz) || 1;
+              const rxv = -Math.cos(st.yaw), rzv = Math.sin(st.yaw);
+              const ahead = (gx * fx + gz * fz) / gd;
+              let msg = null;
+              if (ahead < -0.3) msg = '¡Por ahí no! ¡Da la vuelta!';
+              else if (st.path.length >= 2 && gd < 34) {
+                const [ax, az] = st.path[0], [bx2, bz2] = st.path[1], dx = bx2 - ax, dz = bz2 - az, dl = Math.hypot(dx, dz) || 1;
+                const side = (dx * rxv + dz * rzv) / dl, fwd = (dx * fx + dz * fz) / dl;
+                msg = side > 0.5 ? '¡En el próximo cruce, a la derecha!' : side < -0.5 ? '¡En el próximo cruce, a la izquierda!' : fwd > 0.5 ? '¡Todo recto en el cruce!' : null;
+              } else if (st.path.length === 1) msg = '¡Está en esta calle! ¡Frena en el círculo!';
+              if (msg) compiSay([msg], true);
+            }
+          }
           if (st.left <= 40 && !st.rushHour) {
             // momento cumbre: el último tramo es HORA PUNTA (propinas dobles, más tráfico y más rápido)
             st.rushHour = true;
@@ -688,8 +751,9 @@ export default {
         if (st.target && st.phase !== 'end') {
           if (!(st._rt > 0)) { st.path = routeFrom(st.x, st.z); st._rt = 0.15; } else st._rt -= dt;
           const p0 = st.path[0] || [st.target.x, st.target.z];
-          const close = Math.hypot(p0[0] - st.x, p0[1] - st.z) < 11 && st.path.length > 1;
-          const g = close ? st.path[1] : p0;
+          // siempre al SIGUIENTE CRUCE de la ruta (o al cliente si ya está en esta calle);
+          // gira cuando entras en el cruce, nunca antes (así no te mete contra las fachadas)
+          const g = p0;
           st.guide = g;
           const bearing = Math.atan2(g[0] - st.x, g[1] - st.z);
           st.arrowWant = st.phase === 'drive' || st.phase === 'board';
@@ -698,12 +762,14 @@ export default {
           // inclinada hacia la cámara (sobre su eje derecho): se lee igual apunte adelante o a un lado
           camRight.set(-Math.cos(camYaw), 0, Math.sin(camYaw));
           arrow.quaternion.copy(qTilt.setFromAxisAngle(camRight, 0.8)).multiply(qYaw.setFromAxisAngle(UP, arrowYaw));
-          const pulse = 1 + Math.sin(time * 6) * 0.08;
+          const pulse = (1 + Math.sin(time * 6) * 0.08) * (st.help ? 1.5 : 1);
           ring.scale.set(pulse, 1, pulse); ring.rotation.y += dt;
+          disc.scale.setScalar(st.help ? 1.5 : 1);
+          updateRibbon(time);
           column.visible = ring.visible = disc.visible = true;
           colMat.opacity = clamp((dTarget - 7) / 22, 0, 1); // se desvanece al llegar (la cámara se mete dentro)
           disc.material.opacity = 0.5 * clamp(dTarget / 8, 0.25, 1);
-        } else { st.arrowWant = false; column.visible = ring.visible = disc.visible = false; }
+        } else { st.arrowWant = false; column.visible = ring.visible = disc.visible = false; ribbon.visible = false; }
         // turistas esperando: saludan
         for (const w of st.waiting) {
           w.ch.pose(dTarget < 25 ? 'cheer' : 'wave', time + w.ph);

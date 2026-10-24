@@ -18,12 +18,12 @@ const CSS = `
 @media (max-width: 480px) { .bkk-reloj small { display: none; } .bkk-reloj b { font-size: 26px; } }
 .bkk-reloj.punta { box-shadow: 0 0 16px rgba(255,159,28,.8); border: 2px solid #ff9f1c; }
 .bkk-reloj.punta small { color: #ffcf8a; }
-.bkk-reloj.aviso b { color: #ff5c5c; animation: bkkLate .5s infinite alternate; }
+.bkk-reloj.tarde b { color: #ff5c5c; animation: bkkLate .5s infinite alternate; }
 @keyframes bkkLate { to { transform: scale(1.12); } }
 .bkk-dinero { position: absolute; top: calc(10px + var(--safe-t)); right: calc(68px + var(--safe-r)); text-align: right; line-height: 1.05; background: rgba(20,8,40,.62); border-radius: 12px; padding: 3px 9px 4px; }
 .bkk-dinero b { font-size: clamp(20px, min(3.6vh, 5.6vw), 38px); color: #5dff9b; text-shadow: 0 0 8px rgba(93,255,155,.7), 0 3px 0 #1a1036; }
 .bkk-dinero small { display: block; font-size: clamp(10px, min(1.8vh, 2.8vw), 17px); color: #c9f7ff; margin-top: 2px; }
-.bkk-plus { position: absolute; top: calc(12px + var(--safe-t) + clamp(40px, 6.5vh, 70px)); right: calc(70px + var(--safe-r)); font-size: clamp(14px, 2.2vh, 22px); color: #ffd23f;
+.bkk-plus { position: absolute; top: calc(196px + var(--safe-t)); left: calc(12px + var(--safe-l)); font-size: clamp(14px, 2.2vh, 22px); color: #ffd23f;
   text-shadow: 0 2px 0 #1a1036, 0 0 8px rgba(255,210,63,.7); opacity: 0; }
 .bkk-plus.on { animation: bkkPlus .9s ease-out; }
 @keyframes bkkPlus { 0% { opacity: 0; transform: translateY(8px); } 20% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
@@ -34,7 +34,7 @@ const CSS = `
 .bkk-cobro .k-est { margin-top: 10px; font-size: clamp(30px, 5vh, 50px); line-height: 1; color: #ffd23f; -webkit-text-stroke: 2px #1a1036; text-shadow: 0 4px 0 #1a1036; letter-spacing: 4px; }
 .bkk-cobro .k-est i { font-style: normal; color: #4a3f66; }
 .bkk-cobro .k-sub { display: inline-block; margin-top: 8px; background: #1a1036; color: #fff; border-radius: 99px; padding: 3px 12px; font-size: clamp(12px, 1.8vh, 17px); }
-.bkk-banner { position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%); white-space: nowrap; font-size: clamp(20px, 3.6vh, 36px); color: #ffd23f; background: #1a1036;
+.bkk-banner { position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%); white-space: normal; text-align: center; width: max-content; max-width: 88vw; font-size: clamp(20px, 3.6vh, 36px); color: #ffd23f; background: #1a1036;
   border: 3px solid #ffd23f; border-radius: 16px; padding: 6px 16px; box-shadow: 0 0 20px rgba(255,210,63,.6), 0 5px 0 #000; opacity: 0; }
 .bkk-pop { position: absolute; left: 50%; top: 47%; transform: translate(-50%, -50%); white-space: nowrap; font-size: clamp(26px, 4.6vh, 46px); color: #ffd23f;
   -webkit-text-stroke: 2px #1a1036; text-shadow: 0 4px 0 #1a1036, 0 0 16px currentColor; opacity: 0; }
@@ -76,10 +76,10 @@ const CSS = `
   border-radius: 14px; padding: 8px 14px; font-family: var(--texto); font-weight: 800; font-size: clamp(15px, 2.1vh, 21px); text-align: center; max-width: 86vw; opacity: 0; transition: opacity .3s; }
 .bkk-pista.on { opacity: 1; }
 @media (max-width: 600px) { .bkk-pista { bottom: auto; top: calc(268px + var(--safe-t)); font-size: 14px; } .bkk-burbuja { font-size: 13px; } }
-.bkk-cuenta { position: absolute; top: calc(162px + var(--safe-t)); left: calc(10px + var(--safe-l)); background: rgba(20,8,40,.62); border-radius: 10px; padding: 3px 8px;
-  font-size: clamp(11px, 1.8vh, 17px); color: #c9f7ff; white-space: nowrap; }
+.bkk-cuenta { position: absolute; top: calc(162px + var(--safe-t)); left: calc(10px + var(--safe-l)); background: rgba(14,4,32,.92); border: 1px solid rgba(201,247,255,.35); border-radius: 10px; padding: 3px 8px;
+  font-size: clamp(10px, min(1.8vh, 2.6vw), 17px); color: #c9f7ff; white-space: nowrap; }
 .bkk-cuenta.pop { animation: bkkPop .35s; }
-@media (min-width: 900px) { .bkk-cuenta { top: calc(218px + var(--safe-t)); } }
+@media (min-width: 900px) { .bkk-cuenta { top: calc(218px + var(--safe-t)); } .bkk-plus { top: calc(256px + var(--safe-t)); } }
 .btn-tactil[data-id="turbo"] { background: conic-gradient(#ff3fa4 calc(var(--carga, 0) * 1%), #5a2a55 0) !important; }
 .btn-tactil[data-id="drift"] { box-shadow: 0 5px 0 var(--tinta), 0 0 18px rgba(0,229,255,.6); }
 .tema-bangkok .grito { text-shadow: 0 0 14px #ff3fa4, 0 4px 0 #1a1036; }
@@ -130,7 +130,7 @@ export function createHud(ctx, mm) {
     root,
     clock(sec) {
       const s = Math.max(0, Math.ceil(sec)), txt = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-      if (txt !== lastClock) { reloj.firstElementChild.textContent = txt; lastClock = txt; reloj.classList.toggle('aviso', s <= 15); }
+      if (txt !== lastClock) { reloj.firstElementChild.textContent = txt; lastClock = txt; reloj.classList.toggle('tarde', s <= 15); /* no 'aviso': es la clase de los toasts del núcleo */ }
     },
     money(n, count) {
       if (n === lastMoney && count === api._c) return;
