@@ -122,7 +122,7 @@ export default {
       for (let k = 0; k < se.n; k++) {
         const r = free[k], s = se.s + k * (se.giant ? 46 : 17), a = path.at(s);
         Object.assign(r.b, { cx: a.x, cz: a.z, dx: -a.tx, dz: -a.tz, amp: 0, w: se.giant ? 1.9 : 1 });
-        Object.assign(r, { active: true, age: -k * 0.25, target: se.giant ? 3.8 : 1.35 + ctx.rng.range(-0.1, 0.15), giant: !!se.giant, prevAl: 999, done: false, dying: false });
+        Object.assign(r, { active: true, age: -k * 0.25, target: se.giant ? 4.4 : 1.35 + ctx.rng.range(-0.1, 0.15), giant: !!se.giant, prevAl: 999, done: false, dying: false });
       }
       se.spawned = true;
       if (se.giant) { st.combo = 0; st.giantOn = true; audio.sfx('crash', { pitch: 0.35, vol: 0.8 }); audio.sfx('firework', { pitch: 0.4 }); ctx.shout('🌊 ¡SERIE GIGANTE!', { color: '#7cf5e6' }); engine.shake(0.3); audio.sfx('whoosh'); ui.hint('¡Cuatro olas enormes! Cógelas <b>todas rectas</b> con turbo para el combo', 2600); return true; }
@@ -226,7 +226,7 @@ export default {
       get gate() { return st.gate; }, gates: gates.length, get gatesOk() { return st.gatesOk; },
       get calas() { return st.calas; }, get olas() { return st.olas; }, get speed() { return st.speed; }, get turbo() { return st.turbo; },
       get air() { return st.air; }, get running() { return st.running; }, get done() { return st.done; }, get win() { return st.win; }, get stars() { return st.stars; },
-      get x() { return st.x; }, get z() { return st.z; }, get yaw() { return st.yaw; }, get rockHits() { return st.rockHits; }, get dolphins() { return st.dolphins || 0; }, get combo() { return st.combo || 0; }, get giant() { return !!st.giantOn; }, get dolphinsOn() { return !!dolphins.state.announced && !dolphins.state.done; }, get dolDbg() { return { st: dolphins.state, s0: dolphinS0, pod: dolphins.pod.map((d) => [Math.round(d.x), Math.round(d.y), Math.round(d.z), d.group.visible]) }; }, get ev() { return st.ev; }, get boatHits() { return st.boatHits; },
+      get x() { return st.x; }, get z() { return st.z; }, get yaw() { return st.yaw; }, get rockHits() { return st.rockHits; }, get dolphins() { return st.dolphins || 0; }, get combo() { return st.combo || 0; }, get giant() { return !!st.giantOn; }, get giantDist() { let g = 999; for (const r of ridges) if (r.active && r.giant && !r.done) g = Math.min(g, Math.hypot(r.b.cx - st.x, r.b.cz - st.z)); return g; }, get dolphinsOn() { return !!dolphins.state.announced && !dolphins.state.done; }, get dolDbg() { return { st: dolphins.state, s0: dolphinS0, pod: dolphins.pod.map((d) => [Math.round(d.x), Math.round(d.y), Math.round(d.z), d.group.visible]) }; }, get ev() { return st.ev; }, get boatHits() { return st.boatHits; },
       goodTime, pilot, debugCam: null, get hitLog() { return st.hitLog; }, get track() { return st.track; },
       debugInfo: () => ({ calas: calas.map((c) => ({ x: c.x, z: c.z, s: c.s, back: c.back, entry: c.entry })), gates: gates.map((g) => ({ x: g.x, z: g.z })), start: { x: start.x, z: start.z }, monkey: world.monkeyRock, boats: world.boats.map((b) => ({ x: b.x, z: b.z })), anchored: world.anchored.map((b) => ({ x: b.x, z: b.z })) }),
     };
@@ -431,9 +431,10 @@ export default {
           r.done = true;
           const cosA = -(fxv * b.dx + fzv * b.dz);
           (st.ev = st.ev || []).push(['X', Math.round(st.s), +cosA.toFixed(2), Math.round(st.speed), r.giant ? 'G' : '']);
-          if (st.speed > 13 && cosA > 0.8) launch((4 + st.speed * 0.27) * (r.giant ? 1.5 : 1), r.giant);
+          if (st.speed > 13 && cosA > 0.8) {
+            launch((4 + st.speed * 0.27) * (r.giant ? 1.5 : 1), r.giant);
             if (r.giant) { engine.slowmo(0.7, 0.4); engine.shake(0.35); audio.sfx('crash', { pitch: 0.5 }); }
-          else if (st.speed > 6) {
+          } else if (st.speed > 6) {
             st.air = true; st.airT = 0; st.vy = 2.6; st.speed *= 0.85; st.lastGiant = !!r.giant;
             splash(st.x, st.y, st.z, 14, 3);
             if (cosA <= 0.8) ctx.shout('¡Recta, recta!', { size: 'peque', color: '#9ad7ff' });
@@ -444,7 +445,7 @@ export default {
 
       // ── delfines ──
       dolphins.update(dt, tAll, st, path, sea, {
-        start: () => { ctx.shout('🐬 ¡DELFINES!', { color: '#9ad7ff' }); ui.hint('¡Pasa <b>junto a los delfines</b> cuando salten: cada uno te da turbo!', 2600); audio.sfx('bell', { vol: 0.5 }); },
+        start: () => { ctx.shout('🐬 ¡DELFINES!', { color: '#9ad7ff', cls: 'sm-alto' }); ui.hint('¡Pasa <b>junto a los delfines</b> cuando salten: cada uno te da turbo!', 2600); audio.sfx('bell', { vol: 0.5 }); },
         splash: (x, y, z) => fx.emit(4, { x, y: y + 0.2, z }, { spread: 1, vel: { x: 0, y: 3, z: 0 }, velSpread: 2.5, colors: ['#ffffff', '#dff8ff'], life: 0.7, size: 0.4, gravity: -12 }),
         gift: (d) => {
           st.turbo = Math.min(1, st.turbo + 0.34); st.dolphins = (st.dolphins || 0) + 1;
@@ -554,7 +555,8 @@ export default {
       cam.orbit = damp(cam.orbit, cam.orbitT > 0 ? 1 : 0, 1.5, realDt);
       cam.yaw += angleDiff(cam.yaw, st.yaw * 0.6 + (st.yaw + angleDiff(st.yaw, st.velYaw)) * 0.4) * (1 - Math.exp(-4 * dt));
       let cy = cam.yaw + cam.orbit * cam.orbitSide * (camera.aspect < 1 ? 0.25 : 0.7);
-      let dist = 8.8 + st.speed * 0.07 + cam.orbit * 2.5, hgt = 4.6 + cam.orbit * 1.2 - (st.air ? 0.4 : 0);
+      const portrait = camera.aspect < 1 ? 1.3 : 1;
+      let dist = (8.8 + st.speed * 0.07 + cam.orbit * 2.5) * portrait, hgt = (4.6 + cam.orbit * 1.2 - (st.air ? 0.4 : 0)) * (portrait > 1 ? 1.2 : 1);
       if (!st.running && !st.done) { cy = st.yaw + Math.PI + 0.75 + Math.sin(tAll * 0.3) * 0.08; dist = 9.5 / Math.min(1, camera.aspect * 1.4); hgt = 2.8 + (dist - 9.5) * 0.12; }
       if (st.done) {
         if (cam.finishYaw === undefined) {
@@ -578,7 +580,8 @@ export default {
       camera.position.lerp(tmpV, 1 - Math.exp(-(cam.orbit > 0.02 ? 3 * realDt : 6 * dt)));
       const intro = !st.running && !st.done ? 1 : 0;
       const ahead = Math.pow(1 - cam.orbit, 3) * (st.done ? 0 : 1);
-      camera.lookAt(st.x + fxv * 8 * ahead * (1 - intro) - fzv * 1.6 * intro, st.y + 1.5 - intro * 0.3, st.z + fzv * 8 * ahead * (1 - intro) + fxv * 1.6 * intro);
+      const cfx = Math.sin(cy), cfz = Math.cos(cy);
+      camera.lookAt(st.x + cfx * 8 * ahead * (1 - intro) - fzv * 1.6 * intro, st.y + 1.5 - intro * 0.3, st.z + cfz * 8 * ahead * (1 - intro) + fxv * 1.6 * intro);
       // flecha de pantalla hacia la siguiente boya
       const ngt = gates[st.gate];
       if (playing && ngt && !etapa.debugCam) {

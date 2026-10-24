@@ -40,7 +40,7 @@ async function pasada(modo) {
     let fpsMin = 999, fpsSum = 0, fpsN = 0;
     if (movil) { await o.touch.down(1, JX, JY); await p.waitForTimeout(60); await o.touch.move(1, JX + 1, JY); }
     while (Date.now() - t0 < 300000) {
-      const e = await p.evaluate(() => { const e = window.__ruta.etapa; return e ? { ...e.pilot, giant: e.giant, dol: e.dolphinsOn, done: e.done, running: e.running, calas: e.calas, air: e.air, turboT: e.turbo, fps: window.__ruta.engine.fps, t: e.t, s: e.s, L: e.L } : null; });
+      const e = await p.evaluate(() => { const e = window.__ruta.etapa; return e ? { ...e.pilot, giant: e.giantDist < 38, dol: e.dolphinsOn, done: e.done, running: e.running, calas: e.calas, air: e.air, turboT: e.turbo, fps: window.__ruta.engine.fps, t: e.t, s: e.s, L: e.L } : null; });
       if (!e || e.done) break;
       if (e.t > 3) { fpsMin = Math.min(fpsMin, e.fps); fpsSum += e.fps; fpsN++; }
       if (movil) {
@@ -60,8 +60,8 @@ async function pasada(modo) {
         if (!e.brake && braking) { braking = false; await p.keyboard.up('Space'); }
         if (e.turbo) { await p.keyboard.down('ShiftLeft'); await p.waitForTimeout(40); await p.keyboard.up('ShiftLeft'); if (!turboShot) { turboShot = true; await p.waitForTimeout(250); await shot('turbo'); } }
       }
-      if (e.giant && !giantShot) { giantShot = true; await p.waitForTimeout(4500); await shot('gigante'); }
-      if (e.dol && !dolShot) { dolShot = true; await p.waitForTimeout(400); await shot('delfines'); if (args.track) console.log('  delfines', await p.evaluate(() => JSON.stringify([window.__ruta.etapa.dolDbg, Math.round(window.__ruta.etapa.x), Math.round(window.__ruta.etapa.z), Math.round(window.__ruta.etapa.s)]))); }
+      if (e.giant && !giantShot) { giantShot = true; await p.waitForTimeout(100); await shot('gigante'); }
+      if (e.dol && !dolShot) { dolShot = true; await p.waitForTimeout(1200); await shot('delfines'); if (args.track) console.log('  delfines', await p.evaluate(() => JSON.stringify([window.__ruta.etapa.dolDbg, Math.round(window.__ruta.etapa.x), Math.round(window.__ruta.etapa.z), Math.round(window.__ruta.etapa.s)]))); }
       if (e.air && !airShot) { airShot = true; await p.waitForTimeout(120); await shot('salto'); }
       if (e.calas > lastCalas) { lastCalas = e.calas; calaShots++; await p.waitForTimeout(700); await shot('cala' + calaShots); }
       await p.waitForTimeout(40);

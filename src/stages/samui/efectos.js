@@ -8,6 +8,7 @@ const CSS = `
 .sm-turbo.lleno i { box-shadow: 0 0 8px #ffb703; }
 .sm-turbo.activo { color: #ffd23f; }
 #ui > .grito.sm-alto { top: 20%; }
+@media (max-width: 600px) { #ui > .grito.sm-alto { top: 27%; } }
 .sm-calas { font-family: var(--titulo); font-size: 13px; letter-spacing: .5px; } .sm-calas small { font-size: 13px; margin-left: 3px; }
 .sm-hint { position: fixed; left: 50%; top: calc(112px + var(--safe-t)); transform: translateX(-50%); width: max-content; max-width: min(92vw, 520px); background: rgba(255,248,236,.95); color: #1a1036; border: 3px solid #1a1036; border-radius: 14px; padding: 7px 14px; font-size: 15px; line-height: 1.25; text-align: center; z-index: 5; pointer-events: none; box-shadow: 0 4px 0 rgba(26,16,54,.9); animation: smhint .3s ease-out; }
 @keyframes smhint { from { transform: translate(-50%, -12px); opacity: 0; } }

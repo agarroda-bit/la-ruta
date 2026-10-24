@@ -26,7 +26,8 @@ export function createDolphins(scene, { s0, length = 230, speed = 15, lanes = [-
     update(dt, t, boat, path, sea, cb) {
       if (state.done) return;
       if (!state.on) {
-        if (boat.s > s0 - 75 && boat.s < s0 + 80 && Math.abs(boat.lat) < 22 && !boat.air) { state.on = true; state.yaw = boat.yaw; pod.forEach((d) => { d.group.visible = true; }); }
+        const pa = path.at(boat.s), dy = Math.atan2(Math.sin(boat.yaw - Math.atan2(pa.tx, pa.tz)), Math.cos(boat.yaw - Math.atan2(pa.tx, pa.tz)));
+        if (boat.s > s0 - 75 && boat.s < s0 + 120 && Math.abs(boat.lat) < 14 && Math.abs(dy) < 0.35 && !boat.air) { state.on = true; state.yaw = boat.yaw; pod.forEach((d) => { d.group.visible = true; }); }
         else return;
       }
       state.t += dt;
@@ -36,8 +37,8 @@ export function createDolphins(scene, { s0, length = 230, speed = 15, lanes = [-
       const ending = state.t > 13;
       let anyVisible = false;
       for (const d of pod) {
-        const ahead = 26 - state.t * 3.2 + d.ph * 10;
-        const lat = d.lane + Math.sin(t * 0.8 + d.ph * 5) * 0.8;
+        const ahead = 22 - state.t * 2.6 + d.ph * 8;
+        const lat = d.lane * (innerWidth < innerHeight ? 0.7 : 1) + Math.sin(t * 0.8 + d.ph * 5) * 0.8;
         const x = boat.x + fx * ahead + rx * lat, z = boat.z + fz * ahead + rz * lat;
         const cyc = ((t * 0.55 + d.ph) % 1 + 1) % 1;
         const air = cyc < 0.45;
