@@ -98,7 +98,7 @@ async function jugar(modo) {
   const tecla = async (k, on) => { if (on && !teclas.has(k)) { teclas.add(k); await p.keyboard.down(k); } else if (!on && teclas.has(k)) { teclas.delete(k); await p.keyboard.up(k); } };
 
   const fps = [];
-  const fotos = [[0.08, '2-salida'], [0.4, '3-acantilado'], [0.8, '4-pueblo']];
+  const fotos = [[0.08, '2-salida'], [0.4, '3-acantilado'], [0.7, '4-pueblo'], [0.8, '4b-mercado'], [0.988, '4c-arco']];
   let ultimaFps = 0, t0 = Date.now(), e;
   let giroIzqOk = null;
   while (true) {
@@ -111,7 +111,7 @@ async function jugar(modo) {
     if (giroIzqOk === null && e.t > 0.3 && e.t < 2) {
       giroIzqOk = 'midiendo';
       const d0 = e.d;
-      if (movil) { dedos.get(0).x = 95 - 56; await enviar('touchMove'); } else await tecla('ArrowLeft', true);
+      if (movil) { dedos.get(0).x = 95 - 56; await enviar('touchMove'); } else { await tecla('ArrowRight', false); await tecla('ArrowLeft', true); }
       await sleep(450);
       const d1 = (await estado()).d;
       if (movil) { dedos.get(0).x = 95; await enviar('touchMove'); } else await tecla('ArrowLeft', false);

@@ -33,8 +33,8 @@ async function pasada(modo) {
     await p.waitForTimeout(1200);
     await shot('inicio');
     const btn = async (id) => { const r = await p.locator(`.btn-tactil[data-id="${id}"]`).boundingBox(); return r ? [r.x + r.width / 2, r.y + r.height / 2] : null; };
-    const boostXY = movil ? await btn('boost') : null, brakeXY = movil ? await btn('b') : null;
-    if (movil) ok(!!boostXY && !!brakeXY, 'botones TURBO y FRENO visibles');
+    const boostXY = movil ? await btn('boost') : null, brakeXY = null; // FRENO solo en teclado/mando
+    if (movil) ok(!!boostXY && !(await p.locator('.btn-tactil[data-id="b"]').count()), 'botón TURBO visible y FRENO fuera de la pantalla táctil');
     const JX = 95, JY = H - 170;
     let keySteer = null, keyAcc = 0, braking = false, turboUp = 0, lastCalas = 0, airShot = false, turboShot = false, calaShots = 0, t0 = Date.now();
     let fpsMin = 999, fpsSum = 0, fpsN = 0;
@@ -45,7 +45,7 @@ async function pasada(modo) {
       if (e.t > 3) { fpsMin = Math.min(fpsMin, e.fps); fpsSum += e.fps; fpsN++; }
       if (movil) {
         await o.touch.move(1, JX + Math.max(-1, Math.min(1, e.steer * 1.3)) * 56, JY);
-        if (e.brake && !braking) { braking = true; await o.touch.down(2, ...brakeXY); }
+        if (brakeXY && e.brake && !braking) { braking = true; await o.touch.down(2, ...brakeXY); }
         if (!e.brake && braking) { braking = false; await o.touch.up(2); }
         if (turboUp && Date.now() > turboUp) { turboUp = 0; await o.touch.up(3); }
         else if (e.turbo && !turboUp) { await o.touch.down(3, boostXY[0], boostXY[1]); turboUp = Date.now() + 120; }

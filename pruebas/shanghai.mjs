@@ -2,6 +2,7 @@
 // Juega la etapa entera dos veces: con toques reales en 390×844 (botones ◀ ▶ y TURBO por CDP)
 // y con teclado en 1440×900. Debe llegar a .resultados sin errores de consola.
 // Uso: node pruebas/shanghai.mjs --port 5381 [--solo toque|teclado] [--cpu 4] [--sin-capturas] [--reaccion 280]
+// --humano: 280 ms de reacción, la mitad de anticipación y un cambio cada 450 ms
 // --reaccion: el bot decide con lo que vio hace N ms (simula reflejos humanos; no exige ganar)
 import { createServer } from 'vite';
 import { chromium } from '@playwright/test';
@@ -10,7 +11,8 @@ import { mkdirSync } from 'node:fs';
 const args = Object.fromEntries(process.argv.slice(2).reduce((acc, v, i, arr) => { if (v.startsWith('--')) acc.push([v.slice(2), arr[i + 1] && !arr[i + 1].startsWith('--') ? arr[i + 1] : 'true']); return acc; }, []));
 const port = Number(args.port || 5381);
 const shots = !args['sin-capturas'];
-const REAC = Number(args.reaccion || 0);
+const HUMANO = !!args.humano;
+const REAC = HUMANO ? 280 : Number(args.reaccion || 0);
 const DIR = 'pruebas/capturas';
 mkdirSync(DIR, { recursive: true });
 
@@ -80,14 +82,14 @@ async function pass(name, { width, height, touch }) {
       // elige el carril más seguro: castiga carriles con obstáculo cerca y premia orbes
       const score = [0, 0, 0];
       const ups = st.kmh / 6;
-      const near = st.peligros.filter((h) => h.d > -(h.len || 0) - 1 && h.d < Math.max(45, ups * (h.tipo === 'tren' ? 2.6 : (REAC ? 1.9 : 1.25)))).slice(0, 2);
+      const near = st.peligros.filter((h) => h.d > -(h.len || 0) - 1 && h.d < Math.max(45, ups * (HUMANO ? (h.tipo === 'tren' ? 1.3 : 0.95) : h.tipo === 'tren' ? 2.6 : (REAC ? 1.9 : 1.25)))).slice(0, 2);
       for (const h of near) for (const l of h.carriles) score[l] -= 1000 - Math.max(0, h.d);
       for (const o of st.orbesCerca) if (o.d > 0 && o.d < 70) score[o.carril] += 6 - o.d / 20;
       for (let l = 0; l < 3; l++) score[l] -= Math.abs(l - st.carril) * 2;
       // no cruzar por un carril bloqueado inminente
       let best = score.indexOf(Math.max(...score));
       if (Math.abs(best - st.carril) === 2 && near.some((h) => h.carriles.includes(1) && h.d < 25 && h.d > -(h.len || 0))) best = st.carril;
-      if (best !== st.carril && Date.now() - lastMove > 170) {
+      if (best !== st.carril && Date.now() - lastMove > (HUMANO ? 450 : 170)) {
         lastMove = Date.now();
         // en táctil, alterna botones y deslizar (joystick) para probar los dos
         if (touch && !swipeUsed && near.length === 0) {

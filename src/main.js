@@ -77,7 +77,7 @@ function showNames() {
 
 // ───────── mapa del viaje ─────────
 function nextStage() {
-  for (const st of STAGES) if (!((save.data.stages[st.id] || {}).stars > 0)) return st.id;
+  for (const st of STAGES) { const d = save.data.stages[st.id] || {}; if (!(d.stars > 0 || d.skipped)) return st.id; }
   return STAGES[STAGES.length - 1].id;
 }
 

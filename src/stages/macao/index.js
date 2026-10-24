@@ -104,7 +104,7 @@ export default {
     for (let s = 230; s < finishS - 160; s += rng.range(150, 220)) buses.push({ s, lat: rng() < 0.7 ? -2.5 : 2.5, v: rng.range(8, 11), passed: false, hitCD: 0 });
     const busMesh = makeBuses(scene, buses.length);
 
-    const fxA = new Particles(scene, 1100, { additive: true, size: 0.32 });
+    const fxA = new Particles(scene, 1500, { additive: true, size: 0.32 });
     const fx = new Particles(scene, 300, { size: 0.5 });
     const ui = makeMacaoUI(ctx.hud);
 
