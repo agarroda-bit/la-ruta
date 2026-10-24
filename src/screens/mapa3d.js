@@ -334,7 +334,7 @@ export function createMap3D() {
       plane.position.copy(p); plane.position.y += 1.5 + Math.sin(state.t * 2) * 0.08;
       // cerca de una parada, el avión se aparta a un lado para no tapar la maqueta
       let near = 0; for (const id of ORDER) near = Math.max(near, 1 - Math.min(1, Math.abs(stopU[id] - u) / 0.02));
-      plane.position.x += near * 1.3; plane.position.z += near * 0.6;
+      plane.position.x -= near * 1.5; plane.position.z += near * 0.9;
       // rumbo solo en horizontal (el avión siempre nivelado); aparcado mira hacia la siguiente parada
       const p3 = curve.getPointAt(Math.min(1, u + 0.02)), p0 = curve.getPointAt(Math.max(0, u - 0.02));
       look.set(plane.position.x + (p3.x - p0.x), plane.position.y, plane.position.z + (p3.z - p0.z));

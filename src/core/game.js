@@ -29,14 +29,19 @@ export function isUnlocked(id) {
 }
 
 // ───────── pegatinas ─────────
+let pegQueue = Promise.resolve();
 export function unlockSticker(id) {
   if (save.data.stickers[id]) return false;
   const p = PEGATINAS.find((x) => x.id === id);
   if (!p) return false;
   save.data.stickers[id] = todayKey();
   save.touch();
-  audio.sfx('sticker');
-  toast(`<div class="peg-mini">${stickerSVG(p, 56)}</div><div><b>¡Pegatina!</b><br>${esc(p.name)}</div>`, 2600, 'aviso-peg');
+  // en cola: una pegatina detrás de otra, nunca dos a la vez
+  pegQueue = pegQueue.then(async () => {
+    audio.sfx('sticker');
+    toast(`<div class="peg-mini">${stickerSVG(p, 56)}</div><div><b>¡Pegatina!</b><br>${esc(p.name)}</div>`, 2400, 'aviso-peg');
+    await wait(2800);
+  });
   return true;
 }
 
@@ -140,6 +145,7 @@ export async function playStage(id, { mode = 'normal', ghostOf = null } = {}) {
   };
 
   hud.mount('tema-' + id);
+  document.body.classList.add('en-etapa');
   input.configure(mod.controls || { joystick: false, buttons: [] });
   input.showTouch();
   pauseButton(true);
@@ -183,7 +189,7 @@ function teardown() {
   input.onPause = null;
   pauseButton(false);
   document.querySelectorAll('.dialogo, .grito, .panel-pausa, .resultados').forEach((e) => e.remove());
-  document.body.classList.remove('con-resultados', 'con-dialogo');
+  document.body.classList.remove('con-resultados', 'con-dialogo', 'en-etapa');
   current = null;
 }
 
