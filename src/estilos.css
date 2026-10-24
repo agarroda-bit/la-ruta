@@ -284,3 +284,13 @@ body.modo-foto .hud, body.modo-foto .btn-pausa, body.modo-foto .controles, body.
   .carta { flex-basis: 240px; }
   .mapa-cartas { padding: 12px calc(50% - 120px); }
 }
+@media (max-width: 520px) {
+  .resultados { padding: 14px 12px; }
+  .resultados h2 { font-size: 22px; }
+  .res-estrellas .estrella { font-size: 44px; }
+  .res-puntos { font-size: 36px; }
+  .res-botones { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .res-botones .boton { padding: 8px 6px; font-size: 13px; min-height: 44px; }
+  .res-botones .boton.grande { grid-column: 1 / -1; font-size: 15px; }
+  .res-stats { margin: 10px 0 4px; }
+}
