@@ -226,7 +226,8 @@ export default {
         moreStats: { energia: st.orbs },
         shareText: `${st.orbs} orbes a ${Math.round(st.maxKmh)} km/h en el tren bala de Shanghái`,
         title: '¡Shanghái!',
-        lines: [st.stars === 3 ? 'Puntuales, cargados de energía y sin un rasguño.' : st.crashes ? 'Algún frenazo, pero los fuegos os esperaron.' : 'Sin chocar ni una vez. ¡Maquinistas de honor!'],
+        lines: [st.stars === 3 ? 'Puntuales, cargados de energía y sin un rasguño.' : st.crashes ? 'Algún frenazo, pero los fuegos os esperaron.' : 'Sin chocar ni una vez. ¡Maquinistas de honor!']
+          .concat(st.stars < 3 ? [`3★: como mucho 1 choque y 85\u00a0% de orbes (llevas ${st.crashes} ${st.crashes === 1 ? "choque" : "choques"} y ${Math.floor((100 * st.orbs) / total)}\u00a0%)`] : []),
         delay: 250,
       } : {
         win: false, stars: 0, score, time: st.t, stats,
@@ -290,7 +291,7 @@ export default {
       if (warnedId !== best) {
         warnedId = best;
         const an = hazards.find((h) => h.anuncio && !h.anunciado && h.s - st.s < 420 && h.s > st.s);
-        if (an) { an.anunciado = true; ctx.shout(an.anuncio, { size: 'peque', color: '#ff2d55', ms: 1600 }); }
+        if (an) { an.anunciado = true; ctx.shout(an.anuncio, { size: 'peque', cls: 'sh-clim', ms: 1800 }); audio.sfx('horn', { pitch: 0.8 }); }
         if (best.type === 'tren') audio.sfx('horn', { pitch: 0.55, vol: 0.9 });
         else audio.sfx('countdown', { pitch: 0.7, vol: 0.35 });
         if (!firstWarn) { firstWarn = true; ctx.shout('◀ ▶ ¡CAMBIA DE VÍA!', { size: 'peque', color: '#ffd166', ms: 1400 }); }
@@ -354,16 +355,18 @@ export default {
       if (!st.ultimo2 && st.s >= ULTIMO) {
         st.ultimo2 = true; st.tramo = 'ÚLTIMO TRAMO';
         if (st.danos > 0) { st.danos--; setTimeout(() => ctx.shout('🔧 ¡TREN REPARADO!', { size: 'peque', color: '#7cff6b', ms: 1200 }), 3800); }
-        ctx.shout('¡ÚLTIMO TRAMO!', { color: '#ffd166', ms: 1800 });
+        ctx.shout('¡ÚLTIMO TRAMO!', { cls: 'sh-clim', ms: 1800 });
         ctx.hud.el.classList.add('sh-ultimo');
         audio.sfx('horn', { pitch: 1.2 }); audio.sfx('bell'); engine.shake(0.3); hud.flash('rgba(255,209,102,.35)');
-        setTimeout(() => { if (st.fase === 'carrera') ctx.shout('ORBES DORADOS x3', { size: 'peque', color: '#ffd166', ms: 1500 }); }, 2000);
+        setTimeout(() => { if (st.fase === 'carrera') ctx.shout('ORBES DORADOS x3', { size: 'peque', cls: 'sh-clim', ms: 1500 }); }, 2000);
       }
       if (st.ultimo2 && st.s >= Z.BUND - 60) { st.ultimo2 = false; ctx.hud.el.classList.remove('sh-ultimo'); }
       // chispas mientras frena en seco
       if (st.invul > 1.2) sparks.emit(3, tmpV.set(st.x + (Math.random() - 0.5) * 2.6, DECK + 0.3, -st.s - Math.random() * 20), { colors: ['#ffd166', '#ff7b00'], vel: { x: 0, y: 3, z: -st.v * 0.9 }, velSpread: 4, life: 0.5, gravity: -10, size: 0.35 });
       if (st.s >= BRAKE_AT) {
         st.fase = 'llegada'; st.turbo = false; train.shield.visible = false;
+        if (ctx.cinematic) ctx.cinematic(true);
+        hideEnergyTip();
         st.brakeV = Math.max(st.v, 30); st.brakeD = Z.L - st.s;
         ctx.shout('¡ESTACIÓN BUND!', { color: '#ffd166' });
         audio.sfx('bell'); fw.setShow({ ...fw.show, rate: 1.4 });

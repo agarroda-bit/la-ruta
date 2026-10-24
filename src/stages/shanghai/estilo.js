@@ -50,6 +50,7 @@ const CSS = `
 .hud.sh-ultimo::after { content: ''; position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 90px rgba(255, 176, 0, .45); animation: shultimo .5s infinite alternate; }
 @keyframes shultimo { from { opacity: .45; } to { opacity: 1; } }
 .tema-shanghai.sh-ultimo .hud-ruta { border-color: #ffd166; }
+#ui > .grito.sh-clim, .grito.sh-clim { color: #ffe08a; -webkit-text-stroke: 3px #1a1036; text-shadow: 0 4px 0 #1a1036, 0 0 22px rgba(255, 60, 90, .9), 0 0 6px #fff3c4; }
 `;
 
 export function injectStyle() {
