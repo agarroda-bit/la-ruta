@@ -107,7 +107,7 @@ for (const pass of passes) {
     if (s.turbo >= 0.34 && Math.abs(diff) < 0.12 && dist > 30 && now - turboT > 2500) { turboT = now; await hold('turbo', true); await sleep(60); await hold('turbo', false); }
     if (shots && !shotAction && s.tiempo < 135) { shotAction = true; await page.screenshot({ path: `pruebas/capturas/bangkok-${tag}-accion.png` }); }
     if (shots && !shotRide && s.modo === 'ride' && s.viaje < s.viajeMax - 4) { shotRide = true; await page.screenshot({ path: `pruebas/capturas/bangkok-${tag}-viaje.png` }); }
-    if (s.entregados !== lastDelivered) { lastDelivered = s.entregados; console.log(`  entregado #${s.entregados} · ${s.dinero} ฿ · quedan ${s.tiempo.toFixed(0)} s`); }
+    if (s.entregados !== lastDelivered) { if (shots && lastDelivered === 0) { await sleep(450); await page.screenshot({ path: `pruebas/capturas/bangkok-${tag}-cobro.png` }); } lastDelivered = s.entregados; console.log(`  entregado #${s.entregados} · ${s.dinero} ฿ · quedan ${s.tiempo.toFixed(0)} s`); }
     if (now - lastLog > 15000) { lastLog = now; console.log(`  t=${(150 - s.tiempo).toFixed(0)}s modo=${s.modo} turista=${s.turista} v=${p.v.toFixed(1)} fps=${s.fps.toFixed(0)} entregados=${s.entregados} fallidos=${s.fallidos}`); }
     last = s;
     await sleep(45);

@@ -18,8 +18,25 @@ const CSS = `
 .bkk-reloj.aviso b { color: #ff5c5c; animation: bkkLate .5s infinite alternate; }
 @keyframes bkkLate { to { transform: scale(1.12); } }
 .bkk-dinero { position: absolute; top: calc(12px + var(--safe-t)); right: calc(70px + var(--safe-r)); text-align: right; line-height: 1.05; }
-.bkk-dinero b { font-size: 22px; color: #5dff9b; text-shadow: 0 0 8px rgba(93,255,155,.7), 0 3px 0 #1a1036; }
-.bkk-dinero small { display: block; font-size: 11px; color: #c9f7ff; }
+.bkk-dinero b { font-size: clamp(20px, min(3.6vh, 5.6vw), 38px); color: #5dff9b; text-shadow: 0 0 8px rgba(93,255,155,.7), 0 3px 0 #1a1036; }
+.bkk-dinero small { display: block; font-size: clamp(10px, min(1.8vh, 2.8vw), 17px); color: #c9f7ff; margin-top: 2px; }
+.bkk-plus { position: absolute; top: calc(12px + var(--safe-t) + clamp(40px, 6.5vh, 70px)); right: calc(70px + var(--safe-r)); font-size: clamp(14px, 2.2vh, 22px); color: #ffd23f;
+  text-shadow: 0 2px 0 #1a1036, 0 0 8px rgba(255,210,63,.7); opacity: 0; }
+.bkk-plus.on { animation: bkkPlus .9s ease-out; }
+@keyframes bkkPlus { 0% { opacity: 0; transform: translateY(8px); } 20% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
+.bkk-cobro { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; opacity: 0; }
+.bkk-cobro.on { animation: bkkCobro 2.2s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes bkkCobro { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.5); } 12% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); } 20% { transform: translate(-50%, -50%) scale(1); } 85% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -62%); } }
+.bkk-cobro .k-num { font-size: clamp(46px, 8vh, 84px); line-height: 1; color: #5dff9b; -webkit-text-stroke: 3px #1a1036; text-shadow: 0 5px 0 #1a1036, 0 0 22px rgba(93,255,155,.6); }
+.bkk-cobro .k-est { margin-top: 10px; font-size: clamp(30px, 5vh, 50px); line-height: 1; color: #ffd23f; -webkit-text-stroke: 2px #1a1036; text-shadow: 0 4px 0 #1a1036; letter-spacing: 4px; }
+.bkk-cobro .k-est i { font-style: normal; color: #4a3f66; }
+.bkk-cobro .k-sub { display: inline-block; margin-top: 8px; background: #1a1036; color: #fff; border-radius: 99px; padding: 3px 12px; font-size: clamp(12px, 1.8vh, 17px); }
+.bkk-banner { position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%); white-space: nowrap; font-size: clamp(20px, 3.6vh, 36px); color: #ffd23f; background: #1a1036;
+  border: 3px solid #ffd23f; border-radius: 16px; padding: 6px 16px; box-shadow: 0 0 20px rgba(255,210,63,.6), 0 5px 0 #000; opacity: 0; }
+.bkk-banner.on { animation: bkkCobro 2.4s cubic-bezier(.2,1.4,.4,1) both; }
+.bkk-carta .c-prisa { display: none; font-size: 11px; color: #1a1036; background: #ffd23f; border-radius: 99px; padding: 1px 7px; margin-left: 4px; }
+.bkk-carta.rush .c-prisa { display: inline-block; animation: bkkLate .5s infinite alternate; }
+.bkk-carta.rush { border-color: #ffd23f; box-shadow: 0 0 18px rgba(255,210,63,.7), 0 4px 0 #1a1036; }
 .bkk-dinero.pop b { animation: bkkPop .35s; display: inline-block; }
 @keyframes bkkPop { 40% { transform: scale(1.4); } }
 .bkk-carta { position: absolute; top: calc(66px + var(--safe-t)); right: calc(10px + var(--safe-r)); width: min(270px, calc(100vw - 150px));
@@ -54,6 +71,13 @@ const CSS = `
 .btn-tactil[data-id="turbo"] { background: conic-gradient(#ff3fa4 calc(var(--carga, 0) * 1%), #5a2a55 0) !important; }
 .btn-tactil[data-id="drift"] { box-shadow: 0 5px 0 var(--tinta), 0 0 18px rgba(0,229,255,.6); }
 .tema-bangkok .grito { text-shadow: 0 0 14px #ff3fa4, 0 4px 0 #1a1036; }
+@media (min-width: 900px) and (min-height: 700px) {
+  .bkk-carta .c-nom { font-size: 15px; }
+  .bkk-carta .c-seg { font-size: 20px; }
+  .bkk-pips { font-size: 13px; }
+  .bkk-pips i { height: 13px; }
+  .bkk-reloj small { font-size: 13px; }
+}
 @media (min-width: 900px) {
   .bkk-mapa { width: 170px; height: 170px; }
   .bkk-pips { top: calc(186px + var(--safe-t)); width: 170px; }
@@ -67,15 +91,18 @@ const CSS = `
 
 export function createHud(ctx, mm) {
   const style = document.createElement('style'); style.textContent = CSS; document.head.appendChild(style);
-  const root = document.createElement('div'); root.className = 'bkk';
+  const root = document.createElement('div'); root.className = 'bkk bkk-hud';
   root.innerHTML = `
     <div class="bkk-mapa"><canvas></canvas></div>
     <div class="bkk-pips"><span>TURBO</span><i><b></b></i><i><b></b></i><i><b></b></i></div>
     <div class="bkk-reloj"><b>2:30</b><small>TURNO</small></div>
-    <div class="bkk-dinero"><b>0 ฿</b><small>🛺 0 turistas</small></div>
-    <div class="bkk-carta oculta"><img alt=""><div class="c-txt"><div class="c-nom"></div><div class="c-dest"></div><div class="c-barra"><i></i></div></div><div class="c-seg"></div></div>
+    <div class="bkk-dinero"><b>0 ฿</b><small>🛺 0 entregados</small></div>
+    <div class="bkk-carta oculta"><img alt=""><div class="c-txt"><div class="c-nom"></div><span class="c-prisa">⚡ PRISA ×2</span><div class="c-dest"></div><div class="c-barra"><i></i></div></div><div class="c-seg"></div></div>
     <div class="bkk-burbuja"><img alt=""><div><span class="b-quien"></span><span class="b-txt"></span></div></div>
     <div class="bkk-local"></div>
+    <div class="bkk-plus"></div>
+    <div class="bkk-cobro"><div class="k-num"></div><div class="k-est"></div><div class="k-sub"></div></div>
+    <div class="bkk-banner"></div>
     <div class="bkk-pista"></div>`;
   (ctx.hud.el || document.body).appendChild(root);
   const $ = (s) => root.querySelector(s);
@@ -95,7 +122,7 @@ export function createHud(ctx, mm) {
       if (n === lastMoney && count === api._c) return;
       const up = n > lastMoney && lastMoney >= 0;
       lastMoney = n; api._c = count;
-      dinero.innerHTML = `<b>${n} ฿</b><small>🛺 ${count} turista${count === 1 ? '' : 's'}</small>`;
+      dinero.innerHTML = `<b>${n} ฿</b><small>🛺 ${count} entregado${count === 1 ? '' : 's'}</small>`;
       if (up) { dinero.classList.remove('pop'); void dinero.offsetWidth; dinero.classList.add('pop'); }
     },
     turbo(v) {
@@ -140,6 +167,16 @@ export function createHud(ctx, mm) {
     local(text, cls = '') { local.textContent = text; local.className = 'bkk-local on ' + cls; localT = 2.6; },
     localPos(x, y, vis) { local.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`; if (!vis) local.classList.remove('on'); },
     get localOn() { return localT > 0; },
+    rush(on) { carta.classList.toggle('rush', !!on); },
+    plus(text) { const e = root.querySelector('.bkk-plus'); e.textContent = text; e.classList.remove('on'); void e.offsetWidth; e.classList.add('on'); },
+    cobro(amount, rating, sub) {
+      const e = root.querySelector('.bkk-cobro');
+      e.querySelector('.k-num').textContent = `+${amount} ฿`;
+      e.querySelector('.k-est').innerHTML = '★'.repeat(rating) + '<i>' + '★'.repeat(3 - rating) + '</i>';
+      e.querySelector('.k-sub').textContent = sub;
+      e.classList.remove('on'); void e.offsetWidth; e.classList.add('on');
+    },
+    banner(text, color = '#ffd23f') { const e = root.querySelector('.bkk-banner'); e.textContent = text; e.style.color = color; e.style.borderColor = color; e.classList.remove('on'); void e.offsetWidth; e.classList.add('on'); },
     hint(text, ms = 3000) { pista.innerHTML = esc(text); pista.classList.add('on'); pistaT = ms / 1000; },
     tick(dt) {
       if (sayT > 0) { sayT -= dt; if (sayT <= 0) burbuja.classList.remove('on'); }

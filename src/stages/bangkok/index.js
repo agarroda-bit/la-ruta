@@ -32,7 +32,7 @@ export default {
     { who: 0, text: '¡Bangkok de noche! Esto parece una máquina de pinball gigante.' },
     { who: 1, text: 'El señor Somchai nos deja su tuk-tuk si le hacemos el turno de noche. Llevar turistas españoles.' },
     { who: 'Señor Somchai', text: 'Mi tuk-tuk es mi vida. Llegad a tiempo y habrá propinas. ¡Y no me lo rayéis!' },
-    { who: 0, text: 'Acelera solo. Derrapa en las curvas para cargar el turbo y para dentro del círculo para que suban.' },
+    { who: 0, text: 'El tuk-tuk acelera solo. Derrapa en las curvas para cargar turbo y frena dentro del círculo para que suban.' },
   ],
 
   async create(ctx) {
@@ -149,7 +149,7 @@ export default {
       turbo: 1, boostT: 0, wasDrift: false, idx: 0, cur: null, mode: 'pick', target: null, field: null,
       tripLeft: 0, tripMax: 1, tripCrash: 0, boardT: 0, chatT: 6, chatI: 0, compiCd: 0, crashCd: 0, hintDone: {},
       waiting: [], seated: [], leaving: [], path: [], guide: [0, 0], endT: 0, flash: 0, nextFlash: 10 + Math.random() * 12,
-      lastPhrase: '', finished: false, stars: 0,
+      lastPhrase: '', finished: false, stars: 0, rush: false, rushIdx: 2 + Math.floor(gameRng() * 3), lanterns: 0, camLift: 0, arrowWant: false,
     };
     const E = { fase: 'intro', modo: 'pick', turista: '', entregados: 0, fallidos: 0, dinero: 0, tiempo: SHIFT, viaje: 0, viajeMax: 0, jugador: { x: 0, z: 0, yaw: 0, v: 0 }, guia: { x: 0, z: 0 }, objetivo: { x: 0, z: 0 }, turbo: 1, derrape: 0, choques: 0, terminado: false, estrellas: 0, frenado: false };
     window.__ruta = window.__ruta || {};
@@ -244,6 +244,8 @@ export default {
       if (st.idx >= order.length) return false;
       const t = order[st.idx++];
       st.cur = t; st.mode = 'pick';
+      st.rush = st.idx === st.rushIdx; // un cliente por turno va con PRISA y paga doble
+      hudB.rush(st.rush);
       const dest = destOf(t);
       const p = randomCurb(st.idx === 1 ? 35 : 45, st.idx === 1 ? 85 : 135, dest);
       st.pick = p; st.dest = dest;
@@ -320,7 +322,8 @@ export default {
         st.mode = 'ride';
         setTarget(st.dest, '#00e5ff');
         const len = pathLen(st.x, st.z, st.path);
-        st.tripMax = Math.round(len / 11.5 + 8); st.tripLeft = st.tripMax; st.tripCrash = 0;
+        st.tripMax = Math.round((len / 11.5 + 8) * (st.rush ? 0.85 : 1)); st.tripLeft = st.tripMax; st.tripCrash = 0;
+        if (st.rush) { hudB.banner('⚡ ¡CON PRISA! PAGA DOBLE', '#ffd23f'); audio.sfx('horn'); engine.shake(0.2); }
         st.tripLen = len;
         tuk.setBusy(true);
         hudB.card(t, 'ride', st.dest.name, st.tripLeft, st.tripMax);
@@ -333,17 +336,18 @@ export default {
         const fare = 60 + Math.round(st.tripLen * 0.25);
         const tip = Math.max(0, Math.round(margin * 6) - st.tripCrash * 8);
         const rating = margin >= 12 ? 3 : margin >= 5 ? 2 : 1;
-        st.money += fare + tip; st.delivered++;
+        const mult = st.rush ? 2 : 1;
+        st.money += (fare + tip) * mult; st.delivered++;
         st.bestMargin = Math.max(st.bestMargin, margin);
         audio.sfx('coin'); setTimeout(() => audio.sfx('coin', { pitch: 1.2 }), 120); setTimeout(() => audio.sfx('star', { pitch: 1 + rating * 0.15 }), 260);
-        ctx.shout(`+${fare + tip} ฿`, { color: '#5dff9b' });
-        setTimeout(() => ctx.shout('★'.repeat(rating) + '☆'.repeat(3 - rating), { size: 'peque', color: '#ffd23f', ms: 1200 }), 450);
+        hudB.cobro((fare + tip) * mult, rating, st.rush ? '¡PRISA! ×2' : (tip > 0 ? `propina ${tip} ฿` : 'sin propina'));
         const wp = tuk.group.position.clone(); wp.y = 1.5;
         sparks.emit(40, wp, { colors: ['#ffd23f', '#fff3b0', '#5dff9b'], vel: { x: 0, y: 6, z: 0 }, velSpread: 6, life: 1.0, gravity: -9, size: 0.4 });
         if (rating === 3) engine.slowmo(0.5, 0.35);
         say(t, t.drop[0], 3800);
         if (margin > 20) ctx.sticker('propina');
         if (st.delivered === 5) ctx.sticker('taxista');
+        st.rush = false; hudB.rush(false);
         st.leaving.push(...st.jumpers.map((j) => ({ obj: j.obj, ch: j.ch, life: 3.5 })));
         st.jumpers = [];
         st.cur = null; st.target = null; st.path = [];
@@ -365,7 +369,7 @@ export default {
         scene.add(ch.group);
         st.leaving.push({ obj: ch.group, ch, life: 2.5, run: true });
       });
-      st.failed++;
+      st.failed++; st.rush = false; hudB.rush(false);
       st.cur = null; st.target = null; st.path = [];
       tuk.setBusy(false);
       if (!spawnTourist()) endShift(true);
@@ -382,17 +386,17 @@ export default {
     function finish() {
       if (st.finished) return; st.finished = true;
       const d = st.delivered, win = d >= 3;
-      const stars = !win ? 0 : 1 + (d >= 5 ? 1 : 0) + (d >= 7 || (d >= 6 && st.money >= 1350) ? 1 : 0);
+      const stars = !win ? 0 : 1 + (d >= 5 ? 1 : 0) + (d >= 7 || (d >= 6 && st.money >= 1600) ? 1 : 0);
       st.stars = stars;
       if (win && !st.brakeUsed) ctx.sticker('sin-frenar');
       E.terminado = true; E.estrellas = stars;
       ctx.finish({
         win, stars, time: SHIFT - st.left, score: st.money + d * 50,
-        stats: [['Turistas', `${d}`], ['Baht', `${st.money} ฿`], ['Margen', `${dec(st.bestMargin)} s`], ['Derrape', `${dec(st.driftBest)} s`], ['Choques', st.crashes], ['Plantados', st.failed]],
+        stats: [['Turistas', `${d}`], ['Baht', `${st.money} ฿`], ['Tiempo sobrante', `${dec(st.bestMargin)} s`], ['Mejor derrape', `${dec(st.driftBest)} s`], ['Choques', st.crashes], ['Farolillos', st.lanterns]],
         moreStats: { turistas: d },
         shareText: `${d} turistas y ${st.money} ฿ en el tuk-tuk de Bangkok`,
         title: win ? (stars === 3 ? '¡Taxista del año!' : '¡Turno completado!') : 'Somchai no está contento…',
-        lines: [win ? `Somchai: «${stars === 3 ? 'Mi tuk-tuk nunca había ido tan rápido. ¡Os lo regalo! Es broma.' : 'Buen turno. El tuk-tuk sigue entero… casi.'}»` : 'Somchai: «Mañana lo intentamos otra vez, ¿vale?»'],
+        lines: [stars === 0 ? '1★: entrega 3 turistas' : stars === 1 ? '2★: entrega 5 turistas' : stars === 2 ? '3★: 7 turistas (o 6 y 1600 ฿)' : '¡Tres estrellas! Taxista de leyenda.', win ? `Somchai: «${stars === 3 ? 'Mi tuk-tuk nunca había ido tan rápido. ¡Os lo regalo! Es broma.' : 'Buen turno. El tuk-tuk sigue entero… casi.'}»` : 'Somchai: «Mañana lo intentamos otra vez, ¿vale?»'],
         delay: 300,
       });
     }
@@ -454,7 +458,7 @@ export default {
     const onNear = () => {
       if (st.phase !== 'drive' || st.speed < 14) return;
       st.near++; st.money += 5;
-      ctx.shout('¡POR LOS PELOS! +5 ฿', { size: 'peque', color: '#9fe8ff', ms: 900 });
+      hudB.plus('+5 ฿ ¡por los pelos!');
       audio.sfx('whoosh', { vol: 0.6 });
       if (Math.random() < 0.35) compiSay(COMPI.near);
     };
@@ -472,6 +476,47 @@ export default {
     };
     const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), tmpColor = new THREE.Color();
 
+    // ───────── farolillos de la suerte: flotan sobre las calles, +10 ฿ y algo de turbo ─────────
+    const NL = 30;
+    const lanGeo = new THREE.SphereGeometry(0.42, 8, 6); lanGeo.scale(1, 1.3, 1);
+    const lanMesh = new THREE.InstancedMesh(lanGeo, new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false }), NL);
+    const lanHalo = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshBasicMaterial({ map: blob, color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), NL);
+    lanMesh.frustumCulled = lanHalo.frustumCulled = false;
+    scene.add(lanMesh, lanHalo);
+    const lans = [];
+    for (let k = 0; k < NL; k++) {
+      let x, z;
+      do {
+        const vert = gameRng() < 0.5, kk = Math.floor(gameRng() * (N + 1)), ss = Math.floor(gameRng() * N);
+        const u = line(ss) + CELL * (0.2 + gameRng() * 0.6), off = (gameRng() - 0.5) * 8;
+        x = vert ? line(kk) + off : u; z = vert ? u : line(kk) + off;
+      } while (Math.hypot(x - startX, z - startZ) < 25);
+      lans.push({ x, z, on: true, t: 0, ph: k * 1.3 });
+      const c = new THREE.Color(k % 3 === 0 ? '#ff3b3b' : '#ffcf3a');
+      lanMesh.setColorAt(k, c); lanHalo.setColorAt(k, c.clone().multiplyScalar(0.7));
+    }
+    const lanObj = new THREE.Object3D();
+    function updateLanterns(dt) {
+      for (let k = 0; k < NL; k++) {
+        const l = lans[k];
+        if (l.on) {
+          if (st.phase === 'drive' && Math.abs(l.x - st.x) < 2.6 && Math.abs(l.z - st.z) < 2.6 && Math.hypot(l.x - st.x, l.z - st.z) < 2.6) {
+            l.on = false; l.t = 20;
+            st.money += 10; st.lanterns++; st.turbo = Math.min(1, st.turbo + 0.12);
+            sparks.emit(18, tmpV.set(l.x, 1.6, l.z), { colors: ['#ffcf3a', '#ff3b3b', '#fff3b0'], vel: { x: 0, y: 4, z: 0 }, velSpread: 6, life: 0.7, gravity: -6, size: 0.35 });
+            audio.sfx('coin', { pitch: 1.3 + (st.lanterns % 4) * 0.08 });
+            hudB.plus('+10 ฿ 🏮');
+          }
+        } else { l.t -= dt; if (l.t <= 0 && Math.hypot(l.x - st.x, l.z - st.z) > 35) l.on = true; }
+        const sc = l.on ? 1 : 0;
+        lanObj.position.set(l.x, 1.7 + Math.sin(time * 2 + l.ph) * 0.2, l.z); lanObj.rotation.set(0, time + l.ph, 0); lanObj.scale.setScalar(sc); lanObj.updateMatrix();
+        lanMesh.setMatrixAt(k, lanObj.matrix);
+        lanObj.quaternion.copy(camera.quaternion); lanObj.updateMatrix();
+        lanHalo.setMatrixAt(k, lanObj.matrix);
+      }
+      lanMesh.instanceMatrix.needsUpdate = true; lanHalo.instanceMatrix.needsUpdate = true;
+    }
+
     // ───────── bucle ─────────
     let time = 0;
     const inst = {
@@ -488,6 +533,7 @@ export default {
         hudB.tick(rdt);
         sparks.update(dt); spray.update(dt);
         city.update(dt, time);
+        updateLanterns(dt);
         if (st.compiCd > 0) st.compiCd -= dt;
         if (st.crashCd > 0) st.crashCd -= dt;
         if (st.pendingHint && st.phase === 'drive') { st.hintDelay = (st.hintDelay || 0.8) - dt; if (st.hintDelay <= 0) { hudB.hint(st.pendingHint, 4200); st.pendingHint = null; st.hintDelay = 0; } }
@@ -635,7 +681,7 @@ export default {
           const g = close ? st.path[1] : p0;
           st.guide = g;
           const bearing = Math.atan2(g[0] - st.x, g[1] - st.z);
-          arrow.visible = st.phase === 'drive' || st.phase === 'board';
+          st.arrowWant = st.phase === 'drive' || st.phase === 'board';
           arrow.position.set(st.x + fx * 2.6, 3.3 + Math.sin(time * 4) * 0.12, st.z + fz * 2.6);
           arrowYaw += angleDiff(arrowYaw, bearing) * Math.min(1, dt * 10);
           // inclinada hacia la cámara (sobre su eje derecho): se lee igual apunte adelante o a un lado
@@ -646,7 +692,7 @@ export default {
           column.visible = ring.visible = disc.visible = true;
           colMat.opacity = clamp((dTarget - 7) / 22, 0, 1); // se desvanece al llegar (la cámara se mete dentro)
           disc.material.opacity = 0.5 * clamp(dTarget / 8, 0.25, 1);
-        } else { arrow.visible = false; column.visible = ring.visible = disc.visible = false; }
+        } else { st.arrowWant = false; column.visible = ring.visible = disc.visible = false; }
         // turistas esperando: saludan
         for (const w of st.waiting) {
           w.ch.pose(dTarget < 25 ? 'cheer' : 'wave', time + w.ph);
@@ -711,14 +757,21 @@ export default {
           const velYaw = st.speed > 4 ? Math.atan2(st.vx, st.vz) : st.yaw;
           const want = st.speed > 4 && Math.abs(angleDiff(st.yaw, velYaw)) < 1.2 ? st.yaw + angleDiff(st.yaw, velYaw) * 0.45 : st.yaw;
           camYaw += angleDiff(camYaw, want) * Math.min(1, dt * (st.phase === 'board' ? 2 : 4.2));
-          const back = 6.4 + Math.min(st.speed, 32) * 0.07, up = 3.05 + Math.min(st.speed, 32) * 0.02;
+          const tall = innerWidth < innerHeight; // en vertical el campo horizontal es estrecho: más lejos
+          const back = (tall ? 8.8 : 6.6) + Math.min(st.speed, 32) * 0.07, up = (tall ? 3.8 : 3.1) + Math.min(st.speed, 32) * 0.02;
           let bx = -Math.sin(camYaw) * back, bz = -Math.cos(camYaw) * back;
           // que la cámara no se meta dentro de los edificios
-          let kk = 1;
-          for (let s = 2; s <= 6; s++) { const k = s / 6; if (inBlock(st.x + bx * k, st.z + bz * k, 0.3)) { kk = Math.max(0.6, (s - 1) / 6); break; } }
-          bx *= kk; bz *= kk;
-          camPos.set(st.x + bx, up + (1 - kk) * 4, st.z + bz);
+          // si hay un muro entre cámara y tuk-tuk, la cámara SUBE (casi no se acerca)
+          let blocked = 0;
+          for (let s2 = 1; s2 <= 8; s2++) { const k = s2 / 8; if (inBlock(st.x + bx * k, st.z + bz * k, 0.4)) { blocked = 1 - (s2 - 1) / 8; break; } }
+          st.camLift = damp(st.camLift, blocked, blocked > st.camLift ? 10 : 3, dt);
+          const keep = 1;
+          bx *= keep; bz *= keep;
+          camPos.set(st.x + bx, up + st.camLift * 7, st.z + bz);
           camera.position.lerp(camPos, 1 - Math.exp(-dt * 8));
+          // distancia mínima: nunca encima del tuk-tuk
+          const hx = camera.position.x - st.x, hz = camera.position.z - st.z, hd = Math.hypot(hx, hz), minD = tall ? 8 : 6.2;
+          if (hd < minD) { const ux = hd > 0.01 ? hx / hd : -Math.sin(camYaw), uz = hd > 0.01 ? hz / hd : -Math.cos(camYaw); camera.position.x = st.x + ux * minD; camera.position.z = st.z + uz * minD; }
           camLook.set(st.x + Math.sin(camYaw) * 5, 1.55, st.z + Math.cos(camYaw) * 5);
           lookCur.lerp(camLook, 1 - Math.exp(-dt * 12));
           camera.lookAt(lookCur);
@@ -765,6 +818,10 @@ export default {
         E.jugador.x = st.x; E.jugador.z = st.z; E.jugador.yaw = st.yaw; E.jugador.v = st.speed;
         E.guia.x = st.guide[0]; E.guia.z = st.guide[1];
         if (st.target) { E.objetivo.x = st.target.x; E.objetivo.z = st.target.z; }
+      },
+      render(renderer) {
+        arrow.visible = st.arrowWant && !engine.paused; // ni en pausa ni en el modo foto
+        renderer.render(scene, camera);
       },
       dispose() {
         engineSnd.stop(); rainSnd.stop(); crowdSnd.stop();
