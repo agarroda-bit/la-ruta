@@ -51,7 +51,7 @@ async function pass(name, { width, height, touch }) {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     } else {
       const key = id === 'izq' ? 'ArrowLeft' : id === 'der' ? 'ArrowRight' : 'ShiftLeft';
-      await p.keyboard.down(key); await sleep(45); await p.keyboard.up(key);
+      await p.keyboard.down(key); await sleep(90); await p.keyboard.up(key);
     }
   };
 
@@ -82,12 +82,13 @@ async function pass(name, { width, height, touch }) {
       // elige el carril más seguro: castiga carriles con obstáculo cerca y premia orbes
       const score = [0, 0, 0];
       const ups = st.kmh / 6;
-      const near = st.peligros.filter((h) => h.d > -(h.len || 0) - 1 && h.d < Math.max(45, ups * (HUMANO ? (h.tipo === 'tren' ? 1.3 : 0.95) : h.tipo === 'tren' ? 2.6 : (REAC ? 1.9 : 1.25)))).slice(0, 2);
+      const near = st.peligros.filter((h) => h.d > -(h.len || 0) - 1 && h.d < Math.max(45, ups * (HUMANO ? (h.tipo === 'tren' ? 1.3 : 0.95) : h.tipo === 'tren' ? 2.2 : (REAC ? 1.9 : 1.05)))).slice(0, 2);
       for (const h of near) for (const l of h.carriles) score[l] -= 1000 - Math.max(0, h.d);
-      for (const o of st.orbesCerca) if (o.d > 0 && o.d < 70) score[o.carril] += 6 - o.d / 20;
+      for (const o of st.orbesCerca) if (o.d > 0 && o.d < 70) score[o.carril] += (o.d < 25 ? 12 : 6) - o.d / 20;
       for (let l = 0; l < 3; l++) score[l] -= Math.abs(l - st.carril) * 2;
       // no cruzar por un carril bloqueado inminente
       let best = score.indexOf(Math.max(...score));
+      if (args.debug && st.s > Number(args.debug) - 120 && st.s < Number(args.debug) + 5) console.log('   dbg', st.s, st.carril, st.x.toFixed(2), JSON.stringify(score), JSON.stringify(near));
       if (Math.abs(best - st.carril) === 2 && near.some((h) => h.carriles.includes(1) && h.d < 25 && h.d > -(h.len || 0))) best = st.carril;
       if (best !== st.carril && Date.now() - lastMove > (HUMANO ? 450 : 170)) {
         lastMove = Date.now();

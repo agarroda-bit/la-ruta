@@ -30,9 +30,9 @@ export function generar(rng) {
     if (zone === 2 && !doneGates && s >= CLIMAX_PUERTAS) {
       // clímax 2: puertas en zigzag
       doneGates = true;
-      const open = rng.chance(0.5) ? [0, 2, 0] : [2, 0, 2];
-      open.forEach((o, i) => { H('puerta', s + i * 100, others(o), i === 0 ? { anuncio: '¡PUERTAS EN ZIGZAG!' } : {}); for (let k = 1; k <= 3; k++) orbs.push({ s: s + i * 100 - k * 8, lane: o }); });
-      prevFree = open[2]; s += 2 * 100 + 110; n++; continue;
+      const open = rng.pick([[0, 1, 2], [2, 1, 0], [1, 0, 1], [1, 2, 1]]);
+      open.forEach((o, i) => { H('puerta', s + i * 130, others(o), i === 0 ? { anuncio: '¡PUERTAS EN ZIGZAG!' } : {}); for (let k = 1; k <= 3; k++) orbs.push({ s: s + i * 130 - k * 8, lane: o }); });
+      prevFree = open[2]; s += 2 * 130 + 110; n++; continue;
     }
     let types = zone === 0 ? (s < 800 ? ['obras', 'dron'] : ['obras', 'dron', 'tren', 'obras', 'dron'])
       : zone === 1 ? ['obras2', 'combo', 'tren', 'puerta', 'dron', 'combo', 'trenobras']
@@ -48,8 +48,8 @@ export function generar(rng) {
     else if (type === 'cadena') {
       // obras en el centro y otro lateral; 55 m detrás, un mercancías por el lateral libre: dos cambios seguidos
       const L = rng.pick([0, 2]); blocked = others(L);
-      H('obras', s, blocked, cadenaN++ === 0 ? { anuncio: '¡DOBLE CAMBIO!' } : {}); H('tren', s + 55, [L]);
-      trainLen = 55 + FREIGHT_LEN; cadena = true;
+      H('obras', s, blocked, cadenaN++ === 0 ? { anuncio: '¡DOBLE CAMBIO!' } : {}); H('tren', s + 45, [L]);
+      trainLen = 45 + FREIGHT_LEN; cadena = true;
       for (let k = 2; k <= 5; k++) orbs.push({ s: s + k * 9, lane: 1 });
     }
     else if (type === 'trenobras') { const o = rng.int(0, 2); blocked = others(o); const [a, b2] = rng.chance(0.5) ? blocked : [blocked[1], blocked[0]]; H('tren', s, [a]); H('obras', s, [b2]); trainLen = FREIGHT_LEN; }
@@ -58,7 +58,7 @@ export function generar(rng) {
     const guide = free.reduce((a2, b2) => (Math.abs(b2 - prevFree) < Math.abs(a2 - prevFree) ? b2 : a2));
     for (let k = 4; k >= 1; k--) orbs.push({ s: s - k * 7, lane: guide });
     if (trainLen && !cadena) for (let k = 1; k <= 3; k++) orbs.push({ s: s + k * 9, lane: guide });
-    gap = zone === 0 ? rng.range(150, 195) : zone === 1 ? rng.range(108, 142) : s >= ULTIMO ? rng.range(82, 104) : rng.range(96, 126);
+    gap = zone === 0 ? rng.range(150, 195) : zone === 1 ? rng.range(108, 142) : s >= ULTIMO ? rng.range(74, 94) : rng.range(96, 126);
     gap += trainLen;
     // cadena de orbes en el hueco hasta el siguiente: recta o en zigzag
     const from = s + (trainLen ? trainLen + 26 : 24), to = s + gap - 40;

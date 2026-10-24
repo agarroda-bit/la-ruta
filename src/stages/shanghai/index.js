@@ -13,7 +13,7 @@ import { makeHum } from './sonido.js';
 
 const KMH = 6;                 // 1 m/s del juego = 6 km/h en el velocímetro
 const BRAKE_AT = Z.L - 220;    // aquí empieza a frenar solo en la estación
-const ORB_E = 1 / 18;          // energía por orbe
+const ORB_E = 1 / 26;          // energía por orbe
 const TRAMOS = [[0, 'CAMPO'], [Z.CITY, 'CIUDAD'], [Z.RIVER, 'RÍO'], [Z.BUND - 100, 'EL BUND']];
 const NOMBRE = { tren: '¡TREN DE FRENTE!', obras: 'OBRAS', puerta: 'PUERTA', dron: 'DRON' };
 
@@ -33,7 +33,7 @@ export default {
     { who: 0, text: '¡430 km/h! Este tren va más rápido que el wifi del hostal.' },
     { who: 1, text: 'Los fuegos del Bund empiezan en dos minutos. Ni uno más, {0}.' },
     { who: 'Maquinista Wei', text: 'Si viene un mercancías de frente, cambiad de vía. Yo lo hago siempre.' },
-    { who: 'Maquinista Wei', text: 'Coged energía azul y pulsad TURBO: el escudo aguanta los golpes.' },
+    { who: 'Maquinista Wei', text: 'Coged energía azul y pulsad TURBO: el escudo aguanta un golpe.' },
     { who: 0, text: '¿Y si chocamos?' },
     { who: 'Maquinista Wei', text: 'Frenazo en seco. Tres frenazos y los fuegos los veis por la tele.' },
   ],
@@ -94,6 +94,7 @@ export default {
     const etapa = { id: 'shanghai' };
     window.__ruta = window.__ruta || {};
     window.__ruta.etapa = etapa;
+    window.__ruta.shPlan = () => ({ hazards: hazards.map((h) => ({ t: h.type, s: h.s, l: h.lanes, len: h.len })), orbs: orbs.map((o) => ({ s: o.s, l: o.lane, v: o.v })) });
 
     // cámara de la intro: delante del morro, mirando a la cabina
     camera.position.set(6, DECK + 3, -10);
@@ -196,10 +197,10 @@ export default {
     function collect(o) {
       o.got = true; st.orbs += o.v;
       if (o.gold) ctx.hud.pop('orbes');
-      st.energy = Math.min(1, st.energy + (st.turbo ? ORB_E * 0.5 : ORB_E));
+      if (!st.turbo) st.energy = Math.min(1, st.energy + ORB_E);
       st.combo = st.t - st.comboT < 0.7 ? st.combo + 1 : 1; st.comboT = st.t;
       audio.sfx('coin', { pitch: (o.gold ? 1.3 : 1) + Math.min(14, st.combo) * 0.05, vol: o.gold ? 0.8 : 0.55 });
-      sparks.emit(10, tmpV.set(LANES[o.lane], DECK + 1.7, -o.s), { colors: ['#5ef0ff', '#ffffff', '#2fa8ff'], vel: { x: 0, y: 2, z: -st.v * 0.85 }, velSpread: 5, life: 0.5, gravity: 0, size: 0.4 });
+      sparks.emit(10, tmpV.set(LANES[o.lane], DECK + 1.7, -o.s), { colors: o.gold ? ['#ffd166', '#ffffff', '#ffb000'] : ['#5ef0ff', '#ffffff', '#2fa8ff'], vel: { x: (st.x - LANES[o.lane]) * 7, y: 2, z: -st.v * 0.92 }, velSpread: 4, life: 0.5, gravity: 0, size: 0.4 });
       ctx.hud.pop('orbes');
       if (st.combo >= 10 && st.combo % 10 === 0) ctx.shout(`¡CADENA x${st.combo}!`, { size: 'peque', color: '#5ef0ff', ms: 800 });
       if (st.energy >= 0.999 && !warnedFull && !st.turbo) { warnedFull = true; if (tipsShown++ < 2) showEnergyTip(); audio.sfx('star'); }
@@ -352,6 +353,7 @@ export default {
       if (ti === 2 && st.s > Z.BUND - 700 && !fw.show) { const fc = VIEW.at(285, 0); fw.setShow({ x: fc.x, z: fc.z, w: 150, d: 300, minH: 120, maxH: 230, rate: 0.35, scale: 1 }); }
       if (!st.ultimo2 && st.s >= ULTIMO) {
         st.ultimo2 = true; st.tramo = 'ÚLTIMO TRAMO';
+        if (st.danos > 0) { st.danos--; setTimeout(() => ctx.shout('🔧 ¡TREN REPARADO!', { size: 'peque', color: '#7cff6b', ms: 1200 }), 3800); }
         ctx.shout('¡ÚLTIMO TRAMO!', { color: '#ffd166', ms: 1800 });
         ctx.hud.el.classList.add('sh-ultimo');
         audio.sfx('horn', { pitch: 1.2 }); audio.sfx('bell'); engine.shake(0.3); hud.flash('rgba(255,209,102,.35)');
