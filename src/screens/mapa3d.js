@@ -32,7 +32,7 @@ export const STOPS = {
   phuket: { lon: 98.39, lat: 7.88, label: 'Phuket' },
   samui: { lon: 100.06, lat: 9.51, label: 'Koh Samui' },
   bangkok: { lon: 100.5, lat: 13.75, label: 'Bangkok' },
-  muaythai: { lon: 101.6, lat: 14.9, label: 'Estadio' },
+  muaythai: { lon: 102.9, lat: 15.4, label: 'Estadio' },
   macao: { lon: 113.54, lat: 22.19, label: 'Macao' },
   shanghai: { lon: 121.47, lat: 31.23, label: 'Shanghái' },
 };
@@ -168,7 +168,7 @@ export function createMap3D() {
     const land = polys.some((p) => inPoly(lon, lat, p));
     if (!land) continue;
     // no tapar las paradas
-    if (ORDER.some((id) => Math.hypot(STOPS[id].lon - lon, STOPS[id].lat - lat) < 1.3)) continue;
+    if (ORDER.some((id) => Math.hypot(STOPS[id].lon - lon, STOPS[id].lat - lat) < (lat > 23 ? 3.2 : 1.3))) continue;
     const p = geo(lon, lat, 0.33);
     if (lat > 23 && rnd() < 0.25 && mi < 70) {
       const s = 0.8 + rnd() * 1.6;
@@ -217,7 +217,7 @@ export function createMap3D() {
     const d = a.distanceTo(b);
     for (let k = 0; k < 12; k++) {
       const t = k / 12;
-      const p = a.clone().lerp(b, t); p.y = 0.6 + Math.sin(t * Math.PI) * Math.min(4, 0.6 + d * 0.25);
+      const p = a.clone().lerp(b, t); p.y = 0.6 + Math.sin(t * Math.PI) * Math.min(5, 0.8 + d * 0.3);
       pts.push(p);
     }
   }
@@ -269,7 +269,7 @@ export function createMap3D() {
     placePlane(id) { state.planeU = state.planeTarget = stopU[id]; },
     // posición en pantalla de una parada (para las etiquetas DOM)
     screenPos(id) {
-      const p = pins[id].pos.clone(); p.y += 1.6;
+      const p = pins[id].pos.clone(); p.y += 2.9;
       p.project(camera);
       return { x: (p.x * 0.5 + 0.5) * innerWidth, y: (-p.y * 0.5 + 0.5) * innerHeight, visible: p.z < 1 };
     },
@@ -302,7 +302,8 @@ export function createMap3D() {
         camTarget.set(p.x * 0.4, 0, p.z * 0.5 + 2);
         state.camLook.lerp(camTarget, 1 - Math.exp(-dt * 1.5));
         const ang = state.portadaT * 0.12;
-        camera.position.set(state.camLook.x + Math.sin(ang) * 6, 30, state.camLook.z + 24 + Math.cos(ang) * 4);
+        const por = innerHeight > innerWidth ? 1.7 : 1;
+        camera.position.set(state.camLook.x + Math.sin(ang) * 6, 30 * por, state.camLook.z + (24 + Math.cos(ang) * 4) * por + (por > 1 ? 10 : 0));
         camera.lookAt(state.camLook);
       } else {
         // mapa: el avión va hacia su objetivo; la cámara sigue a la parada elegida
@@ -325,9 +326,12 @@ export function createMap3D() {
       // avión sobre la curva, mirando hacia delante, con un balanceo
       const u = clamp(state.planeU, 0, 0.999);
       const p = curve.getPointAt(u), p2 = curve.getPointAt(Math.min(1, u + 0.004));
-      plane.position.copy(p); plane.position.y += 0.3 + Math.sin(state.t * 2) * 0.08;
-      look.copy(p2); look.y += 0.3;
-      if (p.distanceToSquared(p2) > 1e-6) plane.lookAt(look);
+      plane.position.copy(p); plane.position.y += 1.5 + Math.sin(state.t * 2) * 0.08;
+      // rumbo solo en horizontal (el avión siempre nivelado); aparcado mira hacia la siguiente parada
+      const p3 = curve.getPointAt(Math.min(1, u + 0.02)), p0 = curve.getPointAt(Math.max(0, u - 0.02));
+      look.set(plane.position.x + (p3.x - p0.x), plane.position.y, plane.position.z + (p3.z - p0.z));
+      if ((p3.x - p0.x) ** 2 + (p3.z - p0.z) ** 2 > 1e-6) plane.lookAt(look);
+      plane.rotateX(-clamp((p2.y - p.y) * 6, -0.35, 0.35));
       plane.rotateZ(Math.sin(state.t * 1.3) * 0.12);
       trailAcc += dt;
       if (trailAcc > 0.06) { trailAcc = 0; const tr = trail[trailI++ % trail.length]; tr.position.copy(plane.position); tr.scale.setScalar(1); }

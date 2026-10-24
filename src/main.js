@@ -41,7 +41,7 @@ function showPortada() {
   audio.music('mapa');
   const s = screen('portada', `
     <div class="portada-titulo"><span class="pt-la">LA</span><span class="pt-ruta">RUTA</span></div>
-    <div class="portada-sub">Phuket · Koh Samui · Bangkok · Macao · Shanghái</div>
+    <div class="portada-sub">Phuket · Koh Samui · Bangkok · Muay Thai · Macao · Shanghái</div>
     <div class="portada-toca">Toca para empezar</div>
     <div class="portada-version">v ${esc(VERSION)}</div>`);
   const go = async () => {
@@ -72,7 +72,7 @@ function showNames() {
     await s.close();
     if (edit) openEditor({ onClose: showMap }); else showMap();
   };
-  $('.nom-botones', s).append(button('🎨 Elegir look', () => ok(true)), button('¡Vamos! ✈', () => ok(false), 'grande'));
+  $('.nom-botones', s).append(button('¡Vamos! ✈', () => ok(false), 'grande'), button('🎨 Elegir look', () => ok(true), 'secundario'));
   $('#nom2', s).addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(false); });
 }
 
@@ -130,7 +130,7 @@ async function showMap(focusId) {
       <div class="carta-nombre">${esc(st.name)}</div>
       <div class="carta-sub">${esc(st.sub)}</div>
       <div class="carta-estrellas">${starsHTML(d.stars || 0)}</div>
-      ${open ? '' : '<div class="carta-candado">🔒</div>'}
+      ${open ? '' : '<div class="carta-candado">🔒<small>Supera la etapa anterior</small></div>'}
       <div class="carta-botones"></div>`;
     if (open) {
       const b = $('.carta-botones', c);
@@ -139,7 +139,7 @@ async function showMap(focusId) {
     }
     c.addEventListener('click', () => select(st.id));
     cards.appendChild(c);
-    const lb = h('div', 'etiqueta' + (open ? '' : ' cerrada'), `<span>${st.num}</span>${esc(st.name)}`);
+    const lb = h('div', 'etiqueta' + (open ? '' : ' cerrada'), `<span>${open ? st.num : '🔒'}</span>${esc(st.name)}`);
     lb.addEventListener('click', () => select(st.id));
     labels.appendChild(lb);
     labelEls[st.id] = lb;
@@ -200,7 +200,7 @@ async function showMap(focusId) {
   const key = !seen.inicio ? 'inicio' : (isUnlocked(sel) && VIAJE[sel] && !seen[sel] && sel !== 'phuket' ? sel : null);
   if (key) {
     seen[key] = true; save.touch();
-    setTimeout(() => { if (mapUI === ui) dialog(VIAJE[key]); }, 900);
+    setTimeout(() => { if (mapUI === ui) dialog(VIAJE[key], { pos: 'arriba' }); }, 900);
   }
 }
 

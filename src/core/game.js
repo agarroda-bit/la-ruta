@@ -183,6 +183,7 @@ function teardown() {
   input.onPause = null;
   pauseButton(false);
   document.querySelectorAll('.dialogo, .grito, .panel-pausa, .resultados').forEach((e) => e.remove());
+  document.body.classList.remove('con-resultados', 'con-dialogo');
   current = null;
 }
 
@@ -225,6 +226,7 @@ export function togglePause(force) {
   document.querySelectorAll('.panel-pausa').forEach((e) => e.remove());
   if (!on) { input.showTouch(); return; }
   input.hideTouch();
+  const veil = h('div', 'velo-pausa panel-pausa'); uiRoot().appendChild(veil);
   const p = h('div', 'panel panel-pausa no-ctrl');
   p.innerHTML = `<h2>Pausa</h2><div class="pausa-etapa">${esc(current.def.name)} · ${esc(current.def.sub)}</div>`;
   const list = h('div', 'pausa-botones');
@@ -312,6 +314,7 @@ async function onFinish(def, mod, r, ghostRec, mode, ghostData) {
 
   await wait(r.delay ?? 600);
   input.hideTouch();
+  document.body.classList.add('con-resultados');
   pauseButton(false);
   audio.sfx(r.win ? 'win' : 'lose');
   if (r.win) confetti();

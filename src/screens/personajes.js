@@ -15,7 +15,7 @@ export function openEditor({ onClose } = {}) {
   const scene = new THREE.Scene();
   scene.add(makeSky('#ff9a76', '#ffd6a5', '#6a4c93'));
   scene.fog = new THREE.Fog('#ffd6a5', 12, 40);
-  const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.1, 100);
+  const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.1, 2000);
   scene.add(new THREE.HemisphereLight('#fff1d6', '#7a5c8a', 1.5));
   const sun = new THREE.DirectionalLight('#fff0dd', 2.4); sun.position.set(3, 6, 4); sun.castShadow = true; scene.add(sun);
   const floor = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.8, 0.25, 32), new THREE.MeshStandardMaterial({ color: '#f6e7c8', flatShading: true }));
@@ -40,10 +40,10 @@ export function openEditor({ onClose } = {}) {
         const target = i === who ? spin : 0;
         c.group.rotation.y = damp(c.group.rotation.y, target, 5, dt);
       });
-      const fx = chars[who].group.position.x * 0.7;
       const p = portrait();
-      camera.position.set(damp(camera.position.x, fx, 4, dt), p ? 1.9 : 1.5, p ? 5.6 : 4.3);
-      camera.lookAt(camera.position.x, p ? 0.55 : 0.95, 0);
+      const fx = chars[who].group.position.x * (p ? 0.25 : 0.7);
+      camera.position.set(damp(camera.position.x, fx, 4, dt), p ? 1.0 : 1.5, p ? 11 : 4.3);
+      camera.lookAt(camera.position.x, p ? -0.45 : 0.95, 0);
     },
     resize() { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); },
   };
@@ -53,7 +53,7 @@ export function openEditor({ onClose } = {}) {
 
   const s = screen('editor', `
     <div class="editor-top no-ctrl"><div class="editor-tabs"></div></div>
-    <div class="panel editor-panel no-ctrl"><div class="editor-filas"></div><div class="editor-botones"></div></div>`);
+    <div class="panel editor-panel no-ctrl"><div class="editor-filas"></div></div>`);
   const tabs = $('.editor-tabs', s);
   const rows = $('.editor-filas', s);
   const names = save.data.names;
@@ -82,7 +82,8 @@ export function openEditor({ onClose } = {}) {
   }
   function toggle(key, label) {
     const row = h('div', 'ed-fila', `<span>${label}</span>`);
-    const b = h('button', 'opcion' + (save.data.looks[who][key] ? ' on' : ''), save.data.looks[who][key] ? 'Sí' : 'No');
+    const b = h('button', 'interruptor' + (save.data.looks[who][key] ? ' on' : ''), '<span></span>');
+    b.setAttribute('aria-label', label);
     b.addEventListener('click', () => set(key, !save.data.looks[who][key]));
     row.appendChild(b); return row;
   }
@@ -113,5 +114,5 @@ export function openEditor({ onClose } = {}) {
     );
   }
   render();
-  $('.editor-botones', s).append(button('Listo ✓', async () => { save.flush(); await s.close(); if (onClose) onClose(); }, 'grande'));
+  $('.editor-top', s).append(button('Listo ✓', async () => { save.flush(); await s.close(); if (onClose) onClose(); }, 'grande'));
 }

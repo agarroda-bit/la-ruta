@@ -294,3 +294,33 @@ body.modo-foto .hud, body.modo-foto .btn-pausa, body.modo-foto .controles, body.
   .res-botones .boton.grande { grid-column: 1 / -1; font-size: 15px; }
   .res-stats { margin: 10px 0 4px; }
 }
+
+/* ronda 1 de crítica: arreglos globales */
+body.con-dialogo .controles .btn-tactil, body.con-dialogo .controles .joy { opacity: 0 !important; transition: opacity .2s; }
+body.con-resultados .hud, body.con-resultados [class*="hud"]:not(.resultados *), body.con-resultados .controles { visibility: hidden !important; }
+.aviso { z-index: 15; }
+.aviso-peg { z-index: 16; }
+.velo-pausa { position: fixed; inset: 0; z-index: 9; background: rgba(26,16,54,.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.panel-pausa.panel { z-index: 10; }
+.dialogo.arriba { bottom: auto; top: calc(70px + var(--safe-t)); }
+.dialogo.arriba .dlg-saltar { top: auto; bottom: -44px; }
+.boton.secundario { background: transparent; box-shadow: none; border-style: dashed; font-size: 14px; }
+.nom-botones { flex-direction: column; align-items: stretch; }
+.carta-candado { flex-direction: column; text-align: center; background: rgba(255,248,236,.55); border-radius: 18px; }
+.carta-candado small { display: block; font-size: 12px; font-weight: 800; color: var(--tinta); }
+.carta.cerrada { min-height: 0; }
+.interruptor { width: 58px; height: 32px; border-radius: 99px; border: 3px solid var(--tinta); background: #d9d2c3; position: relative; cursor: pointer; padding: 0; transition: background .2s; }
+.interruptor span { position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 2px solid var(--tinta); transition: left .2s; }
+.interruptor.on { background: var(--turquesa); }
+.interruptor.on span { left: 28px; }
+.editor-top { gap: 10px; align-items: center; flex-wrap: wrap; }
+.editor-top .boton.grande { min-height: 44px; padding: 8px 16px; }
+@media (max-width: 520px) { .editor-panel { max-height: 44vh; } }
+@media (min-width: 900px) {
+  .carta { flex-basis: 200px; padding: 10px 12px 12px; }
+  .carta-nombre { font-size: 19px; }
+  .mapa-cartas { padding: 12px 24px; justify-content: safe center; }
+  .etiqueta { font-size: 15px; padding: 4px 11px 4px 5px; }
+}
+.velo-pausa { left: 0 !important; top: 0 !important; transform: none !important; width: 100% !important; height: 100%; max-height: none !important; animation: none !important; }
+.dialogo.arriba .dlg-saltar { right: auto; left: min(calc(100% - 120px), calc(14px + var(--safe-l) + 460px)); }

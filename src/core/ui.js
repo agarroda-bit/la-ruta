@@ -89,10 +89,11 @@ export async function countdown(go = '¡YA!') {
 // ───────── diálogos ─────────
 // lines: [{ who: 0|1|'Nombre', text: 'Hola {0}' }]. {0} y {1} se cambian por los nombres.
 // Se pueden saltar: tocar avanza, botón SALTAR termina.
-export function dialog(lines, { names = save.data.names, portraits = null } = {}) {
+export function dialog(lines, { names = save.data.names, portraits = null, pos = '' } = {}) {
   return new Promise((resolve) => {
     if (!lines || !lines.length) return resolve();
-    const box = h('div', 'dialogo no-ctrl');
+    const box = h('div', 'dialogo no-ctrl' + (pos ? ' ' + pos : ''));
+    document.body.classList.add('con-dialogo');
     box.innerHTML = '<div class="dlg-burbuja"><div class="dlg-quien"></div><div class="dlg-texto"></div><div class="dlg-sig">▶</div></div><button class="dlg-saltar">SALTAR ⏭</button>';
     root.appendChild(box);
     let i = 0, typing = null, full = '';
@@ -110,7 +111,7 @@ export function dialog(lines, { names = save.data.names, portraits = null } = {}
       typing = setInterval(() => { k += 2; t.textContent = full.slice(0, k); if (k >= full.length) { clearInterval(typing); typing = null; } }, 22);
       audio.sfx('click', { vol: 0.4, pitch: l.who === 1 ? 0.8 : 1.2 });
     };
-    const done = () => { clearInterval(typing); off(); box.classList.add('sale'); setTimeout(() => box.remove(), 250); resolve(); };
+    const done = () => { clearInterval(typing); off(); document.body.classList.remove('con-dialogo'); box.classList.add('sale'); setTimeout(() => box.remove(), 250); resolve(); };
     const next = () => {
       if (typing) { clearInterval(typing); typing = null; box.querySelector('.dlg-texto').textContent = full; return; }
       i++; if (i >= lines.length) done(); else show();
