@@ -18,6 +18,7 @@ uniform float uTime;
 uniform vec4 uW[4];        // dx, dz, empinamiento, k
 uniform vec4 uBigA[4];     // cx, cz, dx, dz
 uniform float uBigAmp[4];
+uniform float uBigW[4];
 uniform vec3 uCam;
 varying vec3 vW;
 varying vec3 vN;
@@ -32,11 +33,11 @@ float bigH(vec2 p, out float crest){
     vec2 rel = p - a.xy;
     float al = dot(rel, a.zw);
     float la = dot(rel, vec2(-a.w, a.z));
-    float w = al > 0.0 ? ${BIG.front.toFixed(2)} : ${BIG.back.toFixed(2)};
+    float w = (al > 0.0 ? ${BIG.front.toFixed(2)} : ${BIG.back.toFixed(2)}) * uBigW[i];
     float g = exp(-al * al / (w * w));
     float lf = 1.0 - smoothstep(${(BIG.half - BIG.edge).toFixed(1)}, ${BIG.half.toFixed(1)}, abs(la));
     h += amp * g * lf;
-    crest = max(crest, g * lf * step(-1.2, al) * step(al, 2.4) * clamp(amp, 0.0, 1.0));
+    crest = max(crest, g * lf * step(-1.2 * uBigW[i], al) * step(al, 2.4 * uBigW[i]) * clamp(amp, 0.0, 1.0));
   }
   return h;
 }
@@ -227,13 +228,14 @@ export function createSea({ quality = 'alta', mapTex, mapRect, colors, sunDir, f
   const segs = quality === 'baja' ? 96 : quality === 'media' ? 128 : 168;
   const rings = quality === 'baja' ? 72 : 92;
   const geo = polarGrid(segs, rings, 1500);
-  const big = Array.from({ length: MAX_BIG }, () => ({ cx: 0, cz: 0, dx: 1, dz: 0, amp: 0 }));
+  const big = Array.from({ length: MAX_BIG }, () => ({ cx: 0, cz: 0, dx: 1, dz: 0, amp: 0, w: 1 }));
   const C = (c) => new THREE.Color(c);
   const uniforms = {
     uTime: { value: 0 },
     uW: { value: waves.map((w) => new THREE.Vector4(w.dx, w.dz, w.s, w.k)) },
     uBigA: { value: big.map(() => new THREE.Vector4()) },
     uBigAmp: { value: big.map(() => 0) },
+    uBigW: { value: big.map(() => 1) },
     uCam: { value: new THREE.Vector3() },
     uMap: { value: mapTex },
     uMapRect: { value: new THREE.Vector3(mapRect.x0, mapRect.z0, mapRect.size) },
@@ -270,7 +272,7 @@ export function createSea({ quality = 'alta', mapTex, mapRect, colors, sunDir, f
       if (b.amp < 0.001) continue;
       const rx = x - b.cx, rz = z - b.cz;
       const al = rx * b.dx + rz * b.dz, la = -rx * b.dz + rz * b.dx;
-      const w = al > 0 ? BIG.front : BIG.back;
+      const w = (al > 0 ? BIG.front : BIG.back) * (b.w || 1);
       h += b.amp * Math.exp(-(al * al) / (w * w)) * (1 - smooth(BIG.half - BIG.edge, BIG.half, Math.abs(la)));
     }
     return h;
@@ -295,6 +297,7 @@ export function createSea({ quality = 'alta', mapTex, mapRect, colors, sunDir, f
         const b = big[i];
         uniforms.uBigA.value[i].set(b.cx, b.cz, b.dx, b.dz);
         uniforms.uBigAmp.value[i] = b.amp;
+        uniforms.uBigW.value[i] = b.w || 1;
       }
       if (boat) uniforms.uBoat.value.set(boat.x, boat.z, boat.yaw, boat.k);
     },

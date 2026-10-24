@@ -60,8 +60,8 @@ async function pasada(modo) {
         if (!e.brake && braking) { braking = false; await p.keyboard.up('Space'); }
         if (e.turbo) { await p.keyboard.down('ShiftLeft'); await p.waitForTimeout(40); await p.keyboard.up('ShiftLeft'); if (!turboShot) { turboShot = true; await p.waitForTimeout(250); await shot('turbo'); } }
       }
-      if (e.giant && !giantShot) { giantShot = true; await p.waitForTimeout(1800); await shot('gigante'); }
-      if (e.dol && !dolShot) { dolShot = true; await p.waitForTimeout(2500); await shot('delfines'); if (args.track) console.log('  delfines', await p.evaluate(() => JSON.stringify([window.__ruta.etapa.dolDbg, Math.round(window.__ruta.etapa.x), Math.round(window.__ruta.etapa.z), Math.round(window.__ruta.etapa.s)]))); }
+      if (e.giant && !giantShot) { giantShot = true; await p.waitForTimeout(4500); await shot('gigante'); }
+      if (e.dol && !dolShot) { dolShot = true; await p.waitForTimeout(400); await shot('delfines'); if (args.track) console.log('  delfines', await p.evaluate(() => JSON.stringify([window.__ruta.etapa.dolDbg, Math.round(window.__ruta.etapa.x), Math.round(window.__ruta.etapa.z), Math.round(window.__ruta.etapa.s)]))); }
       if (e.air && !airShot) { airShot = true; await p.waitForTimeout(120); await shot('salto'); }
       if (e.calas > lastCalas) { lastCalas = e.calas; calaShots++; await p.waitForTimeout(700); await shot('cala' + calaShots); }
       await p.waitForTimeout(40);

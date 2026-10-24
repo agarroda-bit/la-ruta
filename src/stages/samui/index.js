@@ -97,7 +97,7 @@ export default {
     };
     st.velYaw = st.yaw;
     // tiempo "bueno" para las estrellas: recorrido + desvíos de las calas a buen ritmo
-    const goodTime = Math.round(L / 14.6);          // ~1:40: turbo, buenas líneas y las 3 calas
+    const goodTime = Math.round(L / 14.0);          // ~1:45: turbo, buenas líneas y las 3 calas
     const okTime = Math.round(goodTime * 1.25);       // 2★ por tiempo, más holgado
 
     // ───────── olas grandes (series que llegan por el canal) ─────────
@@ -121,11 +121,11 @@ export default {
       if (free.length < se.n) return false;
       for (let k = 0; k < se.n; k++) {
         const r = free[k], s = se.s + k * (se.giant ? 46 : 17), a = path.at(s);
-        Object.assign(r.b, { cx: a.x, cz: a.z, dx: -a.tx, dz: -a.tz, amp: 0 });
-        Object.assign(r, { active: true, age: -k * 0.25, target: se.giant ? 2.0 : 1.35 + ctx.rng.range(-0.1, 0.15), giant: !!se.giant, prevAl: 999, done: false, dying: false });
+        Object.assign(r.b, { cx: a.x, cz: a.z, dx: -a.tx, dz: -a.tz, amp: 0, w: se.giant ? 1.9 : 1 });
+        Object.assign(r, { active: true, age: -k * 0.25, target: se.giant ? 3.8 : 1.35 + ctx.rng.range(-0.1, 0.15), giant: !!se.giant, prevAl: 999, done: false, dying: false });
       }
       se.spawned = true;
-      if (se.giant) { st.combo = 0; st.giantOn = true; ctx.shout('🌊 ¡SERIE GIGANTE!', { color: '#7cf5e6' }); engine.shake(0.3); audio.sfx('whoosh'); ui.hint('¡Cuatro olas enormes! Cógelas <b>todas rectas</b> con turbo para el combo', 2600); return true; }
+      if (se.giant) { st.combo = 0; st.giantOn = true; audio.sfx('crash', { pitch: 0.35, vol: 0.8 }); audio.sfx('firework', { pitch: 0.4 }); ctx.shout('🌊 ¡SERIE GIGANTE!', { color: '#7cf5e6' }); engine.shake(0.3); audio.sfx('whoosh'); ui.hint('¡Cuatro olas enormes! Cógelas <b>todas rectas</b> con turbo para el combo', 2600); return true; }
       if (!st.waveHint) { st.waveHint = true; ctx.shout('🌊 ¡OLAS!', { size: 'peque', color: '#7cf5e6' }); ui.hint('Cógelas <b>rectas</b> y con velocidad: ¡a volar! Cae recto y ganas turbo ⚡', 2600); }
       else audio.sfx('whoosh', { vol: 0.5 });
       return true;
@@ -226,7 +226,7 @@ export default {
       get gate() { return st.gate; }, gates: gates.length, get gatesOk() { return st.gatesOk; },
       get calas() { return st.calas; }, get olas() { return st.olas; }, get speed() { return st.speed; }, get turbo() { return st.turbo; },
       get air() { return st.air; }, get running() { return st.running; }, get done() { return st.done; }, get win() { return st.win; }, get stars() { return st.stars; },
-      get x() { return st.x; }, get z() { return st.z; }, get yaw() { return st.yaw; }, get rockHits() { return st.rockHits; }, get dolphins() { return st.dolphins || 0; }, get combo() { return st.combo || 0; }, get giant() { return !!st.giantOn; }, get dolphinsOn() { return dolphins.state.on && !dolphins.state.done; }, get dolDbg() { return { st: dolphins.state, s0: dolphinS0, pod: dolphins.pod.map((d) => [Math.round(d.x), Math.round(d.y), Math.round(d.z), d.group.visible]) }; }, get ev() { return st.ev; }, get boatHits() { return st.boatHits; },
+      get x() { return st.x; }, get z() { return st.z; }, get yaw() { return st.yaw; }, get rockHits() { return st.rockHits; }, get dolphins() { return st.dolphins || 0; }, get combo() { return st.combo || 0; }, get giant() { return !!st.giantOn; }, get dolphinsOn() { return !!dolphins.state.announced && !dolphins.state.done; }, get dolDbg() { return { st: dolphins.state, s0: dolphinS0, pod: dolphins.pod.map((d) => [Math.round(d.x), Math.round(d.y), Math.round(d.z), d.group.visible]) }; }, get ev() { return st.ev; }, get boatHits() { return st.boatHits; },
       goodTime, pilot, debugCam: null, get hitLog() { return st.hitLog; }, get track() { return st.track; },
       debugInfo: () => ({ calas: calas.map((c) => ({ x: c.x, z: c.z, s: c.s, back: c.back, entry: c.entry })), gates: gates.map((g) => ({ x: g.x, z: g.z })), start: { x: start.x, z: start.z }, monkey: world.monkeyRock, boats: world.boats.map((b) => ({ x: b.x, z: b.z })), anchored: world.anchored.map((b) => ({ x: b.x, z: b.z })) }),
     };
@@ -269,8 +269,8 @@ export default {
       cam.orbitT = 1.6; cam.orbitSide = Math.sign(angleDiff(st.yaw, Math.atan2(c.x - st.x, c.z - st.z))) || 1;
       audio.sfx('star'); audio.sfx('sticker');
       ctx.vibrate(40);
-      ctx.shout(`${c.emoji} ¡CALA ${st.calas}/3!`, { color: '#7cf5e6' });
-      for (let i = 0; i < 3; i++) sparkle.emit(6, { x: st.x + (Math.random() - 0.5) * 8, y: 2 + Math.random() * 3, z: st.z + (Math.random() - 0.5) * 8 }, { colors: ['#fff6a8', '#ffd23f', '#7cf5e6', '#ffffff'], vel: { x: 0, y: 3, z: 0 }, velSpread: 4, life: 1.4, gravity: -2, size: 0.6 });
+      ctx.shout(`${c.emoji} ¡CALA ${st.calas}/3!`, { color: '#7cf5e6', cls: 'sm-alto' });
+      for (let i = 0; i < 2; i++) sparkle.emit(4, { x: st.x + (Math.random() - 0.5) * 8, y: 2 + Math.random() * 3, z: st.z + (Math.random() - 0.5) * 8 }, { colors: ['#fff6a8', '#ffd23f', '#7cf5e6', '#ffffff'], vel: { x: 0, y: 3, z: 0 }, velSpread: 4, life: 1.4, gravity: -2, size: 0.6 });
       st.cheerT = 1.8;
       setTimeout(() => {
         if (st.disposed) return;
@@ -284,7 +284,7 @@ export default {
       st.air = false;
       const clean = st.airT > 0.28 && Math.abs(st.steer) < 0.5;
       (st.ev = st.ev || []).push(['L', Math.round(st.s), +st.airT.toFixed(2), +st.steer.toFixed(2), st.lastGiant ? 'G' : '']);
-      splash(st.x, st.y, st.z, clean ? 30 : 44, clean ? 4 : 6);
+      splash(st.x, st.y, st.z, clean ? 20 : 28, clean ? 4 : 6);
       audio.sfx('splash');
       if (clean) {
         st.limpias++;
@@ -295,7 +295,7 @@ export default {
           ctx.shout(st.combo >= 4 ? '¡COMBO PERFECTO! ×4' : `¡GIGANTE! ×${st.combo}`, { color: '#ffd23f' });
           audio.sfx('coin', { pitch: 1 + st.combo * 0.12 });
           engine.slowmo(0.35, 0.5);
-          if (st.combo >= 4) { st.comboPerfect = true; audio.sfx('star'); engine.shake(0.5); for (let i = 0; i < 3; i++) sparkle.emit(8, { x: st.x, y: st.y + 2, z: st.z }, { colors: ['#ffd23f', '#7cf5e6', '#ffffff'], vel: { x: 0, y: 4, z: 0 }, velSpread: 6, life: 1.2, gravity: -3 }); }
+          if (st.combo >= 4) { st.comboPerfect = true; st.penalty -= 5; setTimeout(() => { if (!st.disposed) ctx.shout('⏱ −5 s', { size: 'peque', color: '#7cf5e6' }); }, 700); hud.pop('tiempo'); audio.sfx('star'); engine.shake(0.5); for (let i = 0; i < 1; i++) sparkle.emit(8, { x: st.x, y: st.y + 2, z: st.z }, { colors: ['#ffd23f', '#7cf5e6', '#ffffff'], vel: { x: 0, y: 4, z: 0 }, velSpread: 6, life: 1.2, gravity: -3 }); }
         } else {
           ctx.shout(st.turbo >= 0.99 ? '¡LIMPIO! TURBO A TOPE' : '¡LIMPIO! +TURBO', { size: 'peque', color: '#ffd23f' });
           audio.sfx('coin', { pitch: 1.1 });
@@ -415,7 +415,7 @@ export default {
       }
 
       // ── olas grandes ──
-      for (const se of series) if (playing && !se.spawned && st.s > se.s - 170 && st.s < se.s + 20) spawnSeries(se);
+      for (const se of series) if (playing && !se.spawned && st.s > se.s - (se.giant ? 330 : 170) && st.s < se.s + 20) spawnSeries(se);
       for (const r of ridges) {
         if (!r.active) continue;
         r.age += dt;
@@ -431,7 +431,8 @@ export default {
           r.done = true;
           const cosA = -(fxv * b.dx + fzv * b.dz);
           (st.ev = st.ev || []).push(['X', Math.round(st.s), +cosA.toFixed(2), Math.round(st.speed), r.giant ? 'G' : '']);
-          if (st.speed > 13 && cosA > 0.8) launch((4 + st.speed * 0.27) * (r.giant ? 1.22 : 1), r.giant);
+          if (st.speed > 13 && cosA > 0.8) launch((4 + st.speed * 0.27) * (r.giant ? 1.5 : 1), r.giant);
+            if (r.giant) { engine.slowmo(0.7, 0.4); engine.shake(0.35); audio.sfx('crash', { pitch: 0.5 }); }
           else if (st.speed > 6) {
             st.air = true; st.airT = 0; st.vy = 2.6; st.speed *= 0.85; st.lastGiant = !!r.giant;
             splash(st.x, st.y, st.z, 14, 3);
@@ -444,7 +445,7 @@ export default {
       // ── delfines ──
       dolphins.update(dt, tAll, st, path, sea, {
         start: () => { ctx.shout('🐬 ¡DELFINES!', { color: '#9ad7ff' }); ui.hint('¡Pasa <b>junto a los delfines</b> cuando salten: cada uno te da turbo!', 2600); audio.sfx('bell', { vol: 0.5 }); },
-        splash: (x, y, z) => fx.emit(6, { x, y: y + 0.2, z }, { spread: 1, vel: { x: 0, y: 3, z: 0 }, velSpread: 2.5, colors: ['#ffffff', '#dff8ff'], life: 0.7, size: 0.4, gravity: -12 }),
+        splash: (x, y, z) => fx.emit(4, { x, y: y + 0.2, z }, { spread: 1, vel: { x: 0, y: 3, z: 0 }, velSpread: 2.5, colors: ['#ffffff', '#dff8ff'], life: 0.7, size: 0.4, gravity: -12 }),
         gift: (d) => {
           st.turbo = Math.min(1, st.turbo + 0.34); st.dolphins = (st.dolphins || 0) + 1;
           audio.sfx('coin', { pitch: 1.2 + st.dolphins * 0.1 }); ctx.vibrate(25);
@@ -552,7 +553,7 @@ export default {
       if (cam.orbitT > 0) cam.orbitT -= realDt;
       cam.orbit = damp(cam.orbit, cam.orbitT > 0 ? 1 : 0, 1.5, realDt);
       cam.yaw += angleDiff(cam.yaw, st.yaw * 0.6 + (st.yaw + angleDiff(st.yaw, st.velYaw)) * 0.4) * (1 - Math.exp(-4 * dt));
-      let cy = cam.yaw + cam.orbit * cam.orbitSide * (camera.aspect < 1 ? 0.5 : 0.8);
+      let cy = cam.yaw + cam.orbit * cam.orbitSide * (camera.aspect < 1 ? 0.25 : 0.7);
       let dist = 8.8 + st.speed * 0.07 + cam.orbit * 2.5, hgt = 4.6 + cam.orbit * 1.2 - (st.air ? 0.4 : 0);
       if (!st.running && !st.done) { cy = st.yaw + Math.PI + 0.75 + Math.sin(tAll * 0.3) * 0.08; dist = 9.5 / Math.min(1, camera.aspect * 1.4); hgt = 2.8 + (dist - 9.5) * 0.12; }
       if (st.done) {
@@ -603,7 +604,11 @@ export default {
 
       // sonido
       if (sndEngine) sndEngine.set({ rate: 0.35 + st.speed / 30 + (st.air ? 0.4 : 0), vol: st.running ? 0.11 : 0.05 });
-      if (sndWaves) sndWaves.set({ vol: 0.1 });
+      // rugido grave de la serie gigante al acercarse
+      let gNear = 999;
+      for (const r of ridges) if (r.active && r.giant && !r.done) gNear = Math.min(gNear, Math.hypot(r.b.cx - st.x, r.b.cz - st.z));
+      if (sndWaves) sndWaves.set({ vol: 0.1 + (gNear < 200 ? (1 - gNear / 200) * 0.45 : 0) });
+      if (gNear < 160 && playing) { st.rumbleT = (st.rumbleT || 0) - dt; if (st.rumbleT <= 0) { st.rumbleT = 1.6; audio.sfx('crash', { pitch: 0.3, vol: 0.25 + (1 - gNear / 160) * 0.5 }); if (gNear < 60) engine.shake(0.08); } }
       if (sndWind) sndWind.set({ vol: clamp(st.speed / 40, 0, 0.12) });
       audio.intensity(turboOn ? 1 : 0.4);
       if (playing) updateHud();
@@ -626,7 +631,7 @@ export default {
       const score = !win ? st.gatesOk * 30 + st.calas * 300 : Math.max(0, Math.round((goodTime * 1.6 - time) * 30)) + st.calas * 500 + st.olas * 60 + st.limpias * 40 + st.gatesOk * 30 + (st.dolphins || 0) * 150 + (st.comboPerfect ? 600 : 0) - st.rockHits * 40;
       ctx.finish({
         win, stars, time, score: Math.max(0, score),
-        stats: [['Tiempo', fmtTime(time)], ['Calas', `${st.calas}/3`], ['Olas saltadas', `${st.olas}${st.comboPerfect ? ' + combo' : ''}`], ['Delfines', `${st.dolphins || 0}/3`], ['Boyas', `${st.gatesOk}/${gates.length}`], ['Choques', `${st.rockHits + st.boatHits}`]],
+        stats: [['Tiempo', fmtTime(time)], ['Calas', `${st.calas}/3`], ['Olas', `${st.olas}${st.comboPerfect ? ' · combo ✓' : ''}`], ['Delfines', `${st.dolphins || 0}/3`], ['Boyas', `${st.gatesOk}/${gates.length}`], ['Choques', `${st.rockHits + st.boatHits}`]],
         moreStats: { olas: st.olas },
         shareText: `${fmtTime(time)}, ${st.calas}/3 calas y ${st.olas} olas saltadas en Koh Samui`,
         title: win ? (st.calas === 3 ? '¡Exploradores de calas!' : '¡Bonita llega a puerto!') : 'Se os hizo de noche…',

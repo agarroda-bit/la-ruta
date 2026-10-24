@@ -361,3 +361,9 @@ body.con-resultados .aviso-peg { bottom: auto; top: calc(10px + var(--safe-t)); 
 @media (min-width: 900px) { .foto-abajo .boton { font-size: 16px; padding: 12px 16px; min-height: 52px; } .foto-filtros .opcion { font-size: 15px; padding: 8px 12px; } }
 body:not(.en-etapa) .aviso-peg { bottom: auto; top: calc(70px + var(--safe-t)); left: 50%; transform: translate(-50%, -20px); }
 body:not(.en-etapa) .aviso-peg.entra { transform: translate(-50%, 0); }
+@media (max-height: 500px) {
+  .pausa-botones { grid-template-columns: 1fr 1fr; }
+  .pausa-botones .boton.grande { grid-column: 1 / -1; }
+  .panel-pausa.panel { padding: 12px 16px; }
+  .panel-pausa h2 { font-size: 20px; margin-bottom: 4px; }
+}
