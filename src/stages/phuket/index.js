@@ -138,7 +138,7 @@ export default {
     const addPuddle = (s, d) => haz.push({ type: 'charco', s, d, r: rng.range(1.5, 2.3), rs: 0, rd: 0 });
     const addBump = (s) => haz.push({ type: 'baden', s, d: 0, rs: 0.5, rd: 6 });
 
-    cocoLine(S0 + 30, 0, 6);
+    cocoLine(S0 + 12, -1.5, 4, 5); cocoSlalom(S0 + 32, 4);
     let first = true;
     for (let s = S0 + 110; s < SF - 110; s += rng.range(52, 74)) {
       const u = (s - S0) / LG, zt = zoneType(u), r = rng();
@@ -347,7 +347,7 @@ export default {
       const pts = (gold ? 50 : 10) * st.mult + (bonus ? 20 : 0);
       st.score += pts;
       st.fuel = Math.min(1, st.fuel + (gold ? 0.2 : 0.07));
-      if (gold) { sfx.combo(4); capa.sum(pts, bike.position, st.mult, true); fxAdd.emit(8, pos, { colors: ['#ffd166', '#fff3b0', '#ffb703'], vel: { x: 0, y: 3, z: 0 }, velSpread: 4, life: 0.5, size: 0.4 }); }
+      if (gold) { sfx.combo(4); capa.sum(pts, bike.position, st.mult, true); }
       else if (bonus) capa.num(`¡COCO RECUPERADO! +${pts}`, pos, 'grande'); else capa.sum(pts, bike.position, st.mult);
       audio.sfx('coin-combo', { pitch: Math.pow(2, Math.min(st.combo - 1, 14) / 12), vol: 0.8 });
       sfx.coco(st.combo - 1);
@@ -386,7 +386,7 @@ export default {
       // derrape suave
       if (Math.abs(steer) > 0.7 && st.v > 18 && !air && st.slide <= 0) {
         st.driftT += dt; st.drift = damp(st.drift, Math.sign(steer) * 0.3, 4, dt);
-        if (Math.random() < 0.25) fx.emit(1, V.copy(bike.position).addScaledVector(bikeDir, -0.7).setY(bike.position.y + 0.15), { color: '#e8dcd0', vel: { x: 0, y: 1.2, z: 0 }, velSpread: 1, life: 0.6, gravity: 0.5, size: 0.5 });
+        if (Math.random() < 0.25) fx.emit(1, V.copy(bike.position).addScaledVector(bikeDir, -0.7).setY(bike.position.y + 0.15), { color: '#e8dcd0', vel: { x: 0, y: 1.2, z: 0 }, velSpread: 1, life: 0.4, gravity: 0.5, size: 0.3 });
         if (st.driftT > 0.3 && Math.floor(st.driftT * 3) !== Math.floor((st.driftT - dt) * 3)) audio.sfx('drift', { vol: 0.5 });
       } else {
         if (st.driftT > 1.0 && st.slide <= 0) { st.v += 5; st.fuel = Math.min(1, st.fuel + 0.15); grito('¡DERRAPE!', { size: 'peque', color: '#2ec4b6' }); audio.sfx('boost', { vol: 0.6 }); }
@@ -457,7 +457,8 @@ export default {
         }
       }
       // mercado nocturno
-      if (!st.mkIn && st.s > MK0 - 35) { st.mkIn = true; st.mkCrash = st.crashes; grito('¡MERCADO NOCTURNO!', { color: '#ffd166' }, 4); capa.say(0, '¡Zigzag! Los dorados valen x5.', anchor0, 2200); audio.sfx('crowd-ooh', { vol: 0.6 }); }
+      if (!st.mkTalk && st.s > MK0 - 130) { st.mkTalk = true; capa.say(0, '¡Mercado! Zigzag, y los dorados valen x5.', anchor0, 2300); }
+      if (!st.mkIn && st.s > MK0 - 35) { st.mkIn = true; st.mkCrash = st.crashes; grito('¡MERCADO NOCTURNO!', { color: '#ffd166' }, 4); audio.sfx('crowd-ooh', { vol: 0.6 }); }
       if (st.mkIn && !st.mkOut && st.s > MK1 + 4) {
         st.mkOut = true;
         if (st.crashes === st.mkCrash) { st.score += 300; grito('¡ENHEBRADO PERFECTO! +300', { color: '#2ec4b6' }, 4); audio.sfx('crowd-cheer', { vol: 0.7 }); sfx.fiesta(); st.fuel = 1; }
@@ -473,7 +474,7 @@ export default {
         if (Math.random() < 0.35) {
           F(st.s + 16, fr2);
           const p = V2.copy(fr2.p).addScaledVector(fr2.n, st.d + (Math.random() - 0.5) * 12).setY(fr2.p.y + 0.5 + Math.random() * 3.5);
-          fxAdd.emit(1, p, { color: '#fff8ec', vel: { x: -fr2.t.x * 45, y: 0, z: -fr2.t.z * 45 }, velSpread: 0, life: 0.45, size: 0.18, gravity: 0 });
+          fxAdd.emit(1, p, { color: '#fff8ec', vel: { x: -fr2.t.x * 45, y: 0, z: -fr2.t.z * 45 }, velSpread: 0, life: 0.26, size: 0.14, gravity: 0 });
         }
       }
 
@@ -484,6 +485,7 @@ export default {
     function finishRace(win) {
       if (st.done) return;
       st.done = true; st.win = win; st.phase = 'fin'; st.finT = 0; st.boosting = false;
+      inp.hideTouch();
       capa.clear();
       audio.intensity(win ? 1 : 0.2);
       if (win) {
