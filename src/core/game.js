@@ -365,7 +365,7 @@ async function onFinish(def, mod, r, ghostRec, mode, ghostData) {
   }
   if (mode === 'reto' || r.win) bx.append(button('💬 Compartir', () => share(def, r, mode)));
   const finale = () => import('../screens/final.js').then((m) => { teardown(); m.openFinale(STAGES, { onClose: () => game.onExit && game.onExit() }); });
-  if (id === 'shanghai' && r.win) bx.append(button('🎬 Créditos finales', finale, 'grande'));
+  if (id === 'shanghai' && r.win) bx.prepend(button('🎬 Créditos finales', finale, 'grande'));
   // animación: estrellas una a una y puntos que suben
   const starEls = el.querySelectorAll('.estrella');
   if (!r.duel) countUp(el.querySelector('.res-num'), r.score || 0, 1000);
