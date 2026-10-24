@@ -112,7 +112,7 @@ function landmark(id) {
 export function createMap3D() {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#9fe3e8');
-  scene.fog = new THREE.Fog('#bff0ee', 40, 95);
+  scene.fog = new THREE.Fog('#bff0ee', 70, 190);
   const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 400);
 
   scene.add(new THREE.HemisphereLight('#fff6e0', '#3a7a8a', 1.4));
@@ -233,7 +233,12 @@ export function createMap3D() {
   const routeIdx = routeGeo.index.count;
   const stopU = {};
   // u de cada parada sobre la curva (aprox. por índice de punto)
-  ORDER.forEach((id, i) => { stopU[id] = Math.min(1, (i * 12) / (pts.length - 1)); });
+  // u (por longitud de arco) del punto de la curva más cercano a cada parada
+  ORDER.forEach((id) => {
+    const target = pins[id].pos; let best = 0, bd = Infinity;
+    for (let k = 0; k <= 2000; k++) { const u = k / 2000, q = curve.getPointAt(u); const d = (q.x - target.x) ** 2 + (q.z - target.z) ** 2; if (d < bd) { bd = d; best = u; } }
+    stopU[id] = best;
+  });
 
   const plane = makePlane();
   plane.scale.setScalar(0.9);
@@ -269,7 +274,7 @@ export function createMap3D() {
     placePlane(id) { state.planeU = state.planeTarget = stopU[id]; },
     // posición en pantalla de una parada (para las etiquetas DOM)
     screenPos(id) {
-      const p = pins[id].pos.clone(); p.y += 2.9;
+      const p = pins[id].pos.clone(); p.y += 1.9;
       p.project(camera);
       return { x: (p.x * 0.5 + 0.5) * innerWidth, y: (-p.y * 0.5 + 0.5) * innerHeight, visible: p.z < 1 };
     },
@@ -279,7 +284,7 @@ export function createMap3D() {
       for (const c of clouds) {
         c.position.x += c.userData.v * dt; if (c.position.x > 28) c.position.x = -28;
         // al acercarse a una parada, las nubes se apartan para no tapar
-        const k = state.zoomTarget < 1 ? 0.001 : 1;
+        const k = state.zoomTarget < 1 || state.mode === 'mapa' ? 0.001 : 1;
         c.scale.setScalar(damp(c.scale.x, k, 6, dt));
       }
       // pulso de los anillos
@@ -327,6 +332,9 @@ export function createMap3D() {
       const u = clamp(state.planeU, 0, 0.999);
       const p = curve.getPointAt(u), p2 = curve.getPointAt(Math.min(1, u + 0.004));
       plane.position.copy(p); plane.position.y += 1.5 + Math.sin(state.t * 2) * 0.08;
+      // cerca de una parada, el avión se aparta a un lado para no tapar la maqueta
+      let near = 0; for (const id of ORDER) near = Math.max(near, 1 - Math.min(1, Math.abs(stopU[id] - u) / 0.02));
+      plane.position.x += near * 1.3; plane.position.z += near * 0.6;
       // rumbo solo en horizontal (el avión siempre nivelado); aparcado mira hacia la siguiente parada
       const p3 = curve.getPointAt(Math.min(1, u + 0.02)), p0 = curve.getPointAt(Math.max(0, u - 0.02));
       look.set(plane.position.x + (p3.x - p0.x), plane.position.y, plane.position.z + (p3.z - p0.z));

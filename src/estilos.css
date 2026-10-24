@@ -340,3 +340,7 @@ body.con-resultados .hud, body.con-resultados [class*="hud"]:not(.resultados *),
 .foto-filtros .opcion { padding: 5px 8px; font-size: 13px; }
 .foto-disparo { width: 72px; height: 72px; flex-shrink: 0; }
 .foto-disparo span { width: 50px; height: 50px; }
+.carta-candado { inset: auto 10px 10px 10px; top: auto; background: rgba(255,248,236,.92); padding: 6px; border-radius: 12px; display: block; }
+.carta.cerrada .carta-estrellas { opacity: .35; }
+.editor-panel { -webkit-mask-image: linear-gradient(180deg, #000 85%, transparent); mask-image: linear-gradient(180deg, #000 85%, transparent); padding-bottom: 40px; }
+.portada-sub { text-wrap: balance; max-width: 92vw; }

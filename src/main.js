@@ -68,7 +68,6 @@ function showNames() {
   const ok = async (edit) => {
     const a = $('#nom1', s).value.trim() || 'Rodri', b = $('#nom2', s).value.trim() || 'el Compi';
     save.data.names[0] = a; save.data.names[1] = b; save.data.namesSet = true; save.flush();
-    unlockSticker('despegue');
     await s.close();
     if (edit) openEditor({ onClose: showMap }); else showMap();
   };
@@ -130,7 +129,7 @@ async function showMap(focusId) {
       <div class="carta-nombre">${esc(st.name)}</div>
       <div class="carta-sub">${esc(st.sub)}</div>
       <div class="carta-estrellas">${starsHTML(d.stars || 0)}</div>
-      ${open ? '' : '<div class="carta-candado">🔒<small>Supera la etapa anterior</small></div>'}
+      ${open ? '' : '<div class="carta-candado"><small>🔒 Supera la etapa anterior</small></div>'}
       <div class="carta-botones"></div>`;
     if (open) {
       const b = $('.carta-botones', c);
@@ -195,6 +194,7 @@ async function showMap(focusId) {
   };
   engine.onFrame.add(follow);
   ui._cleanup = () => { engine.onFrame.delete(follow); offKeys(); clearInterval(padT); };
+  if (save.data.namesSet) setTimeout(() => unlockSticker('despegue'), 400);
   // diálogo de viaje la primera vez que se llega al mapa o a una etapa nueva
   const seen = (save.data.seenDialogs.viaje ||= {});
   const key = !seen.inicio ? 'inicio' : (isUnlocked(sel) && VIAJE[sel] && !seen[sel] && sel !== 'phuket' ? sel : null);
