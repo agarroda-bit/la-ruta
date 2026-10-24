@@ -73,13 +73,14 @@ async function pasada(nombre, { width, height, touch }) {
   if (touch) { await fingerDown(0, joy.x, joy.y); }
   const t0 = Date.now();
   let last = null, turboTaps = 0, drifts = 0, shotMid = false, shotSc = false, shotBridge = false, maxT = 0;
-  let driftHold = 0, last2 = 0, qual = '';
+  let driftHold = 0, last2 = 0, qual = '', ticks = 0;
   const fpsList = [];
   const shotTipos = new Set();
   while (Date.now() - t0 < 300000) {
     const st = await page.evaluate(() => ({ ...window.__ruta.etapa, fps: window.__ruta.engine.fps, q: window.__ruta.engine.qualityName }));
     if (st.running && st.t > 4) { fpsList.push(st.fps); qual = st.q; }
     last = st;
+    ticks++;
     if (st.done) break;
     if (!st.running) { await page.waitForTimeout(80); continue; }
     maxT = st.t;
@@ -114,6 +115,7 @@ async function pasada(nombre, { width, height, touch }) {
   }
   for (const id of [...fingers.keys()].reverse()) await fingerUp(id);
   for (const k of [...keys]) await key(k, false);
+  const tickMs = (Date.now() - t0) / Math.max(1, ticks);
   const fps = fpsList.length ? fpsList.reduce((a, b) => a + b, 0) / fpsList.length : 0;
   const fpsMin = fpsList.length ? Math.min(...fpsList) : 0;
   await page.waitForTimeout(1500);
@@ -135,7 +137,7 @@ async function pasada(nombre, { width, height, touch }) {
     if (shots) await page.screenshot({ path: `pruebas/capturas/macao-${nombre}-fantasma.png` });
   }
   const real = errors.filter((e) => !/AudioContext|autoplay/i.test(e));
-  console.log(`[${nombre}] ${last.win ? 'GANA' : 'PIERDE'} · ${maxT.toFixed(1)} s · ventaja ${(last.lead || 0).toFixed(1)} s · atajos ${last.shortcuts} · estrellas ${stars} · saltos ${last.jumps} · chispas máx ${last.maxCombo} · choques ${last.crashes} · turbos ${turboTaps} · derrapes ${drifts} · fps media ${fps.toFixed(0)} (mín ${fpsMin.toFixed(0)}, calidad ${qual})`);
+  console.log(`[${nombre}] ${last.win ? 'GANA' : 'PIERDE'} · ${maxT.toFixed(1)} s · ventaja ${(last.lead || 0).toFixed(1)} s · atajos ${last.shortcuts} · estrellas ${stars} · saltos ${last.jumps} · chispas máx ${last.maxCombo} · choques ${last.crashes} · turbos ${turboTaps} · derrapes ${drifts} · fps media ${fps.toFixed(0)} (mín ${fpsMin.toFixed(0)}, calidad ${qual}) · ciclo del piloto ${tickMs.toFixed(0)} ms`);
   ok(res, `${nombre}: llega a la pantalla de resultados`);
   ok(last.done, `${nombre}: la carrera termina`);
   ok(real.length === 0, `${nombre}: sin errores de consola${real.length ? ' → ' + real.slice(0, 3).join(' | ') : ''}`);

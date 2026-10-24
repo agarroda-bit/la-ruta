@@ -118,20 +118,20 @@ export function buildWorld({ scene, rng, main, kindAt, shortcuts, events, q, mak
     c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
     for (let i = 0; i < 70; i++) { const y = Math.random() * H, x = Math.random() * W, w = 6 + Math.random() * 26; const gr = c.createLinearGradient(x, 0, x + w, 0); const col = Math.random() < 0.75 ? '255,176,60' : '199,125,255'; gr.addColorStop(0, `rgba(${col},0)`); gr.addColorStop(0.5, `rgba(${col},${0.5 + Math.random() * 0.5})`); gr.addColorStop(1, `rgba(${col},0)`); c.fillStyle = gr; c.fillRect(x, y, w, 2 + Math.random() * 2); }
   }); shimTex.wrapS = shimTex.wrapT = THREE.RepeatWrapping;
-  const shimMat = new THREE.MeshBasicMaterial({ map: shimTex, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+  const shimMat = new THREE.MeshBasicMaterial({ map: shimTex, transparent: true, opacity: 1, fog: false, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
   {
     const bm = new Array(main.n + 1).fill(0).map((_, i) => kindAt(main.dist[i]) === 'bridge' && main.pts[i].y > 1);
     for (const sd of [-1, 1]) {
       const pos = [], uv = [], idx = [];
       for (let i = 0; i <= main.n; i++) {
         const p = main.pts[i], nr = main.nors[i];
-        for (const [lat, u] of [[sd * (w2 + 1), 0], [sd * (w2 + 12), 1]]) { pos.push(p.x + nr.x * lat, WATER_Y + 0.05, p.z + nr.z * lat); uv.push(u, main.dist[i] / 10); }
+        for (const [lat, u] of [[sd * (w2 + 1), 0], [sd * (w2 + 34), 1]]) { pos.push(p.x + nr.x * lat, WATER_Y + 0.05, p.z + nr.z * lat); uv.push(u, main.dist[i] / 10); }
         if (i < main.n && bm[i] && bm[i + 1]) { const k = i * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); }
       }
       const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); gg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); gg.setIndex(idx);
       const m = new THREE.Mesh(gg, shimMat); m.renderOrder = 1; scene.add(m);
     }
-    anim.push((t) => { shimTex.offset.set(Math.sin(t * 0.7) * 0.05, t * 0.06); shimMat.opacity = 0.75 + Math.sin(t * 3.1) * 0.1; });
+    anim.push((t) => { shimTex.offset.set(Math.sin(t * 0.7) * 0.05, t * 0.06); shimMat.opacity = 0.85 + Math.sin(t * 3.1) * 0.15; });
   }
 
   // ── pilares de los puentes y farolas ──
@@ -571,6 +571,17 @@ export function buildWorld({ scene, rng, main, kindAt, shortcuts, events, q, mak
       tmp.rotation.set(0, rng() * 3, 0); tmp.scale.set(rng.range(50, 130), rng.range(70, 320), rng.range(50, 110)); tmp.updateMatrix(); im.setMatrixAt(i, tmp.matrix);
     }
     im.frustumCulled = false; scene.add(im);
+    // reflejos del skyline en el agua: columnas de luz que rielan hacia la ciudad
+    const refl = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5), new THREE.MeshBasicMaterial({ map: shimTex, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false }), n);
+    const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), s4 = new THREE.Vector3(), p4 = new THREE.Vector3();
+    for (let i = 0; i < n; i++) {
+      im.getMatrixAt(i, m4); m4.decompose(p4, q4, s4);
+      tmp.position.set(p4.x, WATER_Y + 0.06, p4.z);
+      tmp.rotation.set(0, Math.atan2(center.x - p4.x, center.z - p4.z), 0);
+      tmp.scale.set(s4.x * 0.8, 1, Math.hypot(center.x - p4.x, center.z - p4.z) * 0.85); tmp.updateMatrix(); refl.setMatrixAt(i, tmp.matrix);
+      refl.setColorAt(i, col.set(i % 3 ? '#ffb347' : '#c77dff'));
+    }
+    refl.frustumCulled = false; refl.renderOrder = 1; scene.add(refl);
   }
   {
     const n = 700, pos = new Float32Array(n * 3);
