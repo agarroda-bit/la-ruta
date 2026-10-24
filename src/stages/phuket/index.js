@@ -12,8 +12,8 @@ import { makeSfx } from './sonidos.js';
 import { makeCapa } from './capa.js';
 
 const LG = 3200;           // metros de salida a meta
-const TIME_LIMIT = 145;    // segundos de sol
-const T_MARGEN = 22;       // margen para la 2ª estrella (y la 3ª con cocos)
+const TIME_LIMIT = 126;    // segundos de sol
+const T_MARGEN = 16;       // margen para la 2ª estrella (y la 3ª con cocos)
 const COCO_3 = 0.65;       // fracción de cocos para la 3ª estrella
 const V_BASE = 26, V_TURBO = 37, V_FRENO = 7, V_ARENA = 16;
 
@@ -39,7 +39,7 @@ export default {
     joystick: 'steer',
     buttons: [
       { id: 'boost', label: 'TURBO', keys: ['ShiftLeft', 'ShiftRight', 'KeyX'], pad: [0, 7, 5], color: '#ff9f1c', size: 'big', pos: { right: 22, bottom: 40 } },
-      { id: 'brake', label: 'FRENO', keys: ['Space', 'KeyZ'], pad: [1, 6, 4], color: '#3a86ff', pos: { right: 140, bottom: 24 } },
+      { id: 'brake', label: 'FRENO', keys: ['Space', 'KeyZ'], pad: [1, 6, 4], color: '#3a86ff', hidden: true },
     ],
   },
   intro: [
@@ -143,7 +143,8 @@ export default {
         else if (r < 0.8) addScooter(s + 60, rng.chance(0.4));
         else cocoPattern(s);
       } else if (zt === 'pueblo') {
-        if (r < 0.2) { addChickens(s); }
+        if (u > 0.68 && r < 0.3) { addMonkey(s, rng.chance(0.5)); if (rng.chance(0.5)) addChickens(s + 30); }
+        else if (r < 0.2) { addChickens(s); }
         else if (r < 0.37) { const d = lane(); addDog(s, d); cocoLine(s - 10, d === 0 ? rng.pick([-3, 3]) : -d, 3); }
         else if (r < 0.52) addScooter(s + 50, rng.chance(0.45));
         else if (r < 0.62) { addBump(s); cocoArc(s, lane()); }
@@ -259,13 +260,20 @@ export default {
       if (st.mult > 1) { const e = ctx.hud.set('combo', `RACHA x${st.mult}`, 'izq'); e.classList.toggle('x3', st.mult >= 3); } else ctx.hud.remove('combo');
       ctx.hud.bar('prog', clamp((st.s - S0) / LG, 0, 1), 'VILLA 🏡', 'centro', '#ff6f61');
       const btn = document.querySelector('.controles .btn-tactil[data-id="boost"]');
-      if (btn) { btn.style.setProperty('--turbo', st.fuel.toFixed(3)); btn.classList.toggle('vacio', st.fuel < 0.12); btn.classList.toggle('lleno', st.fuel > 0.98 && st.phase === 'carrera'); }
+      if (btn) { btn.style.setProperty('--turbo', st.fuel.toFixed(3)); btn.dataset.pct = st.fuel > 0.98 ? '¡LLENO!' : st.boosting ? '' : Math.round(st.fuel * 100) + '%'; btn.classList.toggle('vacio', st.fuel < 0.12); btn.classList.toggle('lleno', st.fuel > 0.98 && st.phase === 'carrera'); }
       if (!isTouch()) ctx.hud.bar('turbo', st.fuel, 'TURBO (Shift)', 'abajo', '#ff9f1c'); else ctx.hud.remove('turbo');
     };
     updateHud();
 
     // ───────── utilidades de juego ─────────
     const pick = (a) => a[Math.floor(Math.random() * a.length)];
+    let lastShout = -9, lastPrio = 0;
+    const grito = (text, opts = {}, prio = 1) => {
+      if (st.time - lastShout < 1.1 && prio <= lastPrio) return;
+      lastShout = st.time; lastPrio = prio;
+      if (st.phase === 'carrera') document.querySelectorAll('.grito').forEach((e) => e.remove());
+      ctx.shout(text, opts);
+    };
     const bikeDir = new THREE.Vector3();
     function crash(kind, h) {
       if (st.inv > 0) return;
@@ -276,21 +284,21 @@ export default {
       st.v *= keep; st.wob = 0.8; st.rel *= -0.4; st.scream = 0.9;
       engine.shake(kind === 'gallina' ? 0.3 : 0.6); ctx.vibrate(kind === 'gallina' ? 30 : 70);
       audio.sfx('hit'); sfx.ay(); sfx.frenazo();
-      ctx.shout(pick(GRITOS[kind]), { size: 'peque', color: '#ff6f61' });
+      grito(pick(GRITOS[kind]), { size: 'peque', color: '#ff6f61' }, 3);
       const hp = h.mesh ? h.mesh.position : bike.position;
       if (kind === 'mono') {
         st.monkeyHits++; h.state = 'vuela'; h.vy = 7; h.vd = (h.d > st.d ? 1 : -1) * 7; h.spin = 0;
         audio.sfx('monkey'); sfx.mono(); engine.slowmo(0.35, 0.3);
-        fx.emit(14, hp, { colors: ['#8d6346', '#d9b48f'], vel: { x: 0, y: 4, z: 0 }, velSpread: 5, life: 0.7 });
+        fx.emit(8, hp, { colors: ['#8d6346', '#d9b48f'], vel: { x: 0, y: 4, z: 0 }, velSpread: 5, life: 0.7 });
       } else if (kind === 'perro') {
         h.state = 'huye'; h.vd = h.d >= st.d ? 1 : -1; audio.sfx('dog'); sfx.guau();
       } else if (kind === 'gallina') {
         h.state = 'vuela'; h.vy = 6; h.vd = (h.d >= st.d ? 1 : -1) * 4; sfx.coc();
-        fx.emit(22, V.copy(hp).setY(hp.y + 0.5), { colors: ['#ffffff', '#fff8ec', '#ffe8c8'], vel: { x: 0, y: 3, z: 0 }, velSpread: 6, life: 1.4, gravity: -1.5, size: 0.3 });
+        fx.emit(14, V.copy(hp).setY(hp.y + 0.5), { colors: ['#ffffff', '#fff8ec', '#ffe8c8'], vel: { x: 0, y: 3, z: 0 }, velSpread: 6, life: 1.4, gravity: -1.5, size: 0.3 });
       } else if (kind === 'moto') {
         h.bump = 1; audio.sfx('bike-horn'); capa.num('¡Mai pen rai!', V.copy(hp).setY(hp.y + 2.4));
       }
-      fxAdd.emit(10, V.copy(bike.position).setY(bike.position.y + 1), { colors: ['#ffd166', '#ffffff'], vel: { x: 0, y: 3, z: 0 }, velSpread: 6, life: 0.35, size: 0.4 });
+      fxAdd.emit(5, V.copy(bike.position).setY(bike.position.y + 1), { colors: ['#ffd166', '#ffffff'], vel: { x: 0, y: 3, z: 0 }, velSpread: 6, life: 0.35, size: 0.4 });
     }
     function takeCoco(c, bonus = false) {
       c.taken = true;
@@ -304,16 +312,16 @@ export default {
       st.combo = st.comboT > 0 ? st.combo + 1 : 1; st.comboT = 1.7;
       st.bestCombo = Math.max(st.bestCombo, st.combo);
       const newMult = st.combo >= 10 ? 3 : st.combo >= 5 ? 2 : 1;
-      if (newMult > st.mult) { ctx.shout(`¡RACHA x${newMult}!`, { size: 'peque', color: newMult === 3 ? '#ff4fa3' : '#ffd166' }); sfx.combo(newMult); }
+      if (newMult > st.mult) { grito(`¡RACHA x${newMult}!`, { size: 'peque', color: newMult === 3 ? '#ff4fa3' : '#ffd166' }, 2); sfx.combo(newMult); }
       st.mult = newMult;
       const pts = 10 * st.mult + (bonus ? 20 : 0);
       st.score += pts;
       st.fuel = Math.min(1, st.fuel + 0.05);
-      capa.num(bonus ? `¡COCO RECUPERADO! +${pts}` : `+${pts}`, pos, st.mult > 1 || bonus ? 'grande' : '');
+      if (bonus) capa.num(`¡COCO RECUPERADO! +${pts}`, pos, 'grande'); else capa.sum(pts, bike.position, st.mult);
       audio.sfx('coin-combo', { pitch: Math.pow(2, Math.min(st.combo - 1, 14) / 12), vol: 0.8 });
       sfx.coco(st.combo - 1);
-      fxAdd.emit(10, pos, { colors: ['#fff3b0', '#ffd166', '#ffffff'], vel: { x: 0, y: 2.5, z: 0 }, velSpread: 4, life: 0.45, size: 0.45 });
-      fx.emit(6, pos, { colors: ['#6ab04c', '#8fd16a'], vel: { x: 0, y: 3, z: 0 }, velSpread: 3, life: 0.6, size: 0.25 });
+      fxAdd.emit(4, pos, { colors: ['#fff3b0', '#ffd166'], vel: { x: 0, y: 2.5, z: 0 }, velSpread: 3, life: 0.35, size: 0.35 });
+      fx.emit(2, pos, { colors: ['#6ab04c', '#8fd16a'], vel: { x: 0, y: 3, z: 0 }, velSpread: 3, life: 0.5, size: 0.22 });
       ctx.hud.pop('cocos');
       st.cheer = 0.5;
       if (!st.sticker1) { st.sticker1 = true; ctx.sticker('primer-coco'); }
@@ -327,7 +335,7 @@ export default {
       const wantBoost = inp.down('boost') && !braking;
       if (!wantBoost) st.boostLock = false;
       const canBoost = wantBoost && !st.boostLock && st.fuel > 0.01;
-      if (canBoost && !st.boosting) { sfx.turbo(); audio.sfx('boost'); if (st.fuel > 0.3) ctx.shout('¡TURBO!', { size: 'peque', color: '#ffd166' }); }
+      if (canBoost && !st.boosting) { sfx.turbo(); audio.sfx('boost');  }
       st.boosting = canBoost;
       if (st.boosting) { st.fuel -= dt / 2.6; if (st.fuel <= 0) { st.fuel = 0; st.boostLock = true; st.boosting = false; } }
       else st.fuel = Math.min(1, st.fuel + dt / 15);
@@ -346,10 +354,10 @@ export default {
       // derrape suave
       if (Math.abs(steer) > 0.7 && st.v > 18 && !air && st.slide <= 0) {
         st.driftT += dt; st.drift = damp(st.drift, Math.sign(steer) * 0.3, 4, dt);
-        if (Math.random() < 0.5) fx.emit(1, V.copy(bike.position).addScaledVector(bikeDir, -0.7).setY(bike.position.y + 0.15), { color: '#e8dcd0', vel: { x: 0, y: 1.2, z: 0 }, velSpread: 1, life: 0.6, gravity: 0.5, size: 0.5 });
+        if (Math.random() < 0.25) fx.emit(1, V.copy(bike.position).addScaledVector(bikeDir, -0.7).setY(bike.position.y + 0.15), { color: '#e8dcd0', vel: { x: 0, y: 1.2, z: 0 }, velSpread: 1, life: 0.6, gravity: 0.5, size: 0.5 });
         if (st.driftT > 0.3 && Math.floor(st.driftT * 3) !== Math.floor((st.driftT - dt) * 3)) audio.sfx('drift', { vol: 0.5 });
       } else {
-        if (st.driftT > 1.0 && st.slide <= 0) { st.v += 5; st.fuel = Math.min(1, st.fuel + 0.15); ctx.shout('¡DERRAPE!', { size: 'peque', color: '#2ec4b6' }); audio.sfx('boost', { vol: 0.6 }); }
+        if (st.driftT > 1.0 && st.slide <= 0) { st.v += 5; st.fuel = Math.min(1, st.fuel + 0.15); grito('¡DERRAPE!', { size: 'peque', color: '#2ec4b6' }); audio.sfx('boost', { vol: 0.6 }); }
         st.driftT = 0; st.drift = damp(st.drift, 0, 6, dt);
       }
       F(st.s, fr);
@@ -366,10 +374,10 @@ export default {
         if (Math.sign(st.rel) === sgn) st.rel *= -0.35;
         if (st.wallT <= 0) {
           st.wallT = 0.5; st.v *= 0.88; engine.shake(0.18); sfx.chispas();
-          fxAdd.emit(12, V.copy(bike.position).addScaledVector(fr.n, sgn * 0.5).setY(bike.position.y + 0.5), { colors: ['#ffd166', '#ffffff', '#ff9f1c'], vel: { x: 0, y: 3, z: 0 }, velSpread: 5, life: 0.3, size: 0.3 });
+          fxAdd.emit(6, V.copy(bike.position).addScaledVector(fr.n, sgn * 0.5).setY(bike.position.y + 0.5), { colors: ['#ffd166', '#ffffff', '#ff9f1c'], vel: { x: 0, y: 3, z: 0 }, velSpread: 5, life: 0.3, size: 0.3 });
         }
       }
-      if (offroad && !air && Math.random() < 0.5) fx.emit(1, V.copy(bike.position).setY(bike.position.y + 0.2), { color: '#e0c08a', vel: { x: 0, y: 1.5, z: 0 }, velSpread: 2, life: 0.6, size: 0.55 });
+      if (offroad && !air && Math.random() < 0.25) fx.emit(1, V.copy(bike.position).setY(bike.position.y + 0.2), { color: '#e0c08a', vel: { x: 0, y: 1.5, z: 0 }, velSpread: 2, life: 0.6, size: 0.55 });
       // salto
       if (air || st.vy > 0) {
         st.air += dt; st.y += st.vy * dt; st.vy -= 20 * dt;
@@ -395,15 +403,15 @@ export default {
         }
         const dd = h.d - st.d;
         if (h.type === 'baden') {
-          if (!h.done && ds < 0.3 && st.y < 0.2) { h.done = true; st.vy = 6.4 + (st.boosting ? 2.2 : 0) + st.v * 0.04; sfx.boing(); if (rng.chance(0.5)) ctx.shout('¡HOP!', { size: 'peque' }); }
+          if (!h.done && ds < 0.3 && st.y < 0.2) { h.done = true; st.vy = 6.4 + (st.boosting ? 2.2 : 0) + st.v * 0.04; sfx.boing(); }
           continue;
         }
         if (h.type === 'charco') {
           if (!h.done && ds * ds / (h.r * h.r * 1.3) + dd * dd / (h.r * h.r) < 1 && st.y < 0.3) {
             h.done = true; st.slide = 0.9; st.slideV = (h.s % 2 > 1 ? 1 : -1) * 3.2; st.vy = 2.4;
             audio.sfx('splash'); sfx.chof(); engine.shake(0.12);
-            fx.emit(26, V.copy(bike.position).setY(bike.position.y + 0.2), { colors: ['#bfe9ff', '#ffffff', '#7fb7d6'], vel: { x: 0, y: 4.5, z: 0 }, velSpread: 5, life: 0.7, size: 0.35, gravity: -12 });
-            if (rng.chance(0.6)) ctx.shout(pick(['¡AQUAPLANING!', '¡QUE PATINO!', '¡CHOF!']), { size: 'peque', color: '#7fd3ff' });
+            fx.emit(14, V.copy(bike.position).setY(bike.position.y + 0.2), { colors: ['#bfe9ff', '#ffffff', '#7fb7d6'], vel: { x: 0, y: 4.5, z: 0 }, velSpread: 5, life: 0.7, size: 0.35, gravity: -12 });
+            grito(pick(['¡AQUAPLANING!', '¡QUE PATINO!', '¡CHOF!']), { size: 'peque', color: '#7fd3ff' }, 1);
           }
           continue;
         }
@@ -413,7 +421,7 @@ export default {
         if (Math.abs(ds) < 0.9 + h.rs && Math.abs(dd) < 0.42 + h.rd) crash(h.type, h);
         else if (h.type === 'moto' && !h.greeted && Math.abs(ds) < 4 && Math.abs(dd) < 3.8) {
           h.greeted = true; h.wave = 1.6; audio.sfx('bike-horn', { pitch: 1.2, vol: 0.6 });
-          if (rng.chance(0.6)) capa.num(pick(['¡Sawadee!', '¡Hola, farang!', '¡Buen viaje!', '¡Feliz cumple!']), V.copy(h.mesh.position).setY(h.mesh.position.y + 2.6));
+          if (Math.random() < 0.6) capa.num(pick(['¡Sawadee!', '¡Hola, farang!', '¡Buen viaje!', '¡Feliz cumple!']), V.copy(h.mesh.position).setY(h.mesh.position.y + 2.6));
         }
       }
       // diálogos
@@ -422,8 +430,8 @@ export default {
       // turbo: estela, líneas de aire
       if (st.boosting) {
         const rear = V.copy(bike.position).addScaledVector(bikeDir, -0.95).setY(bike.position.y + 0.4);
-        fxAdd.emit(2, rear, { colors: ['#ffd166', '#ff9f1c', '#ff6f61'], vel: { x: bikeDir.x * 12, y: 0.6, z: bikeDir.z * 12 }, velSpread: 1.2, life: 0.28, size: 0.38, gravity: 0 });
-        if (Math.random() < 0.7) {
+        fxAdd.emit(1, rear, { colors: ['#ffd166', '#ff9f1c', '#ff6f61'], vel: { x: bikeDir.x * 12, y: 0.6, z: bikeDir.z * 12 }, velSpread: 1.2, life: 0.28, size: 0.38, gravity: 0 });
+        if (Math.random() < 0.35) {
           F(st.s + 16, fr2);
           const p = V2.copy(fr2.p).addScaledVector(fr2.n, st.d + (Math.random() - 0.5) * 12).setY(fr2.p.y + 0.5 + Math.random() * 3.5);
           fxAdd.emit(1, p, { color: '#fff8ec', vel: { x: -fr2.t.x * 45, y: 0, z: -fr2.t.z * 45 }, velSpread: 0, life: 0.45, size: 0.18, gravity: 0 });
@@ -530,7 +538,7 @@ export default {
             const near = ds < 30 && ds > -5;
             h.head.rotation.x = damp(h.head.rotation.x, near ? -0.35 : 0.45, 4, dt);
             h.head.rotation.y = near ? Math.sin(tt * 2) * 0.3 : 0;
-            if (near && !h.woof && ds < 22) { h.woof = true; if (rng.chance(0.5)) audio.sfx('dog', { vol: 0.4 }); }
+            if (near && !h.woof && ds < 22) { h.woof = true; if (Math.random() < 0.5) audio.sfx('dog', { vol: 0.4 }); }
           } else if (h.state === 'huye') {
             h.d += h.vd * 7 * dt;
             if (Math.abs(h.d) > 10) { h.d = Math.sign(h.d) * 10; h.state = 'lejos'; }
@@ -608,7 +616,9 @@ export default {
       se.time.value = st.time; se.sunDir.value.copy(sunDir); se.deep.value.copy(mixPal(k, 'sea')); se.horizon.value.copy(mixPal(k, 'hor')); se.sunCol.value.copy(mixPal(k, 'sun'));
       sun.color.copy(mixPal(k, 'light')); sun.intensity = mixPal(k, 'li');
       hemi.color.copy(mixPal(k, 'hs')); hemi.groundColor.copy(mixPal(k, 'hg')); hemi.intensity = mixPal(k, 'hi');
-      const ld = V.copy(sunDir); ld.y = Math.max(ld.y, 0.32); ld.normalize();
+      st.fill = damp(st.fill || 0, st.phase === 'fin' && st.win ? 1 : 0, 1.5, dt);
+      if (st.fill > 0.01) { hemi.intensity += st.fill * 1.1; hemi.color.lerp(cB.set('#ffd9b0'), st.fill * 0.6); hemi.groundColor.lerp(cB.set('#c87a8a'), st.fill * 0.6); sun.intensity += st.fill * 0.6; }
+      const ld = V.copy(sunDir); ld.y = Math.max(ld.y, 0.85); ld.normalize();
       sun.target.position.copy(bike.position);
       sun.position.copy(bike.position).addScaledVector(ld, 110);
       world.sky.position.copy(camera.position);
@@ -663,14 +673,15 @@ export default {
         camera.lookAt(camLook);
         camera.fov = damp(camera.fov, portrait ? 74 : 56, 3, dt);
       } else if (st.phase === 'fin') {
-        F(SF + 12, fr2);
-        const center = st.win ? W(SF + 12, -14, 1.2, V2) : V2.copy(bike.position).add(V3.set(0, 1.2, 0));
-        if (camOrbit === 0) { V.copy(camera.position).sub(center); camOrbit = Math.atan2(V.dot(fr2.n), V.dot(fr2.t)) + 0.0001; }
-        camOrbit -= dt * 0.38;
-        const r = portrait ? 21 : 16;
+        // cámara centrada en los dos protagonistas, de frente, con la fiesta detrás
+        F(st.s, fr2);
+        const center = V2.copy(bike.position).add(V3.set(0, 1.25, 0)).addScaledVector(fr2.n, -0.6);
+        if (camOrbit === 0) camOrbit = 0.75;
+        camOrbit = Math.max(-0.35, camOrbit - dt * 0.22);
+        const r = portrait ? 7.8 : 6.2;
         const cp = V.copy(center).addScaledVector(fr2.t, Math.cos(camOrbit) * r).addScaledVector(fr2.n, Math.sin(camOrbit) * r);
-        cp.y = center.y + 5.5 + Math.sin(st.finT * 0.5) * 1.0;
-        camera.position.lerp(cp, 1 - Math.exp(-dt * 1.4));
+        cp.y = center.y + 1.6 + Math.sin(st.finT * 0.6) * 0.3;
+        camera.position.lerp(cp, 1 - Math.exp(-dt * (st.finT < 1.2 ? 1.6 : 2.5)));
         camLook.lerp(center, 1 - Math.exp(-dt * 3));
         camera.lookAt(camLook);
         camera.fov = damp(camera.fov, portrait ? 72 : 58, 2, dt);

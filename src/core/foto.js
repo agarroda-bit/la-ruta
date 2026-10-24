@@ -58,6 +58,7 @@ export function openPhotoMode(current) {
   const off = cam.position.clone().sub(target);
   const sph = new THREE.Spherical().setFromVector3(off);
   const base = { r: sph.radius };
+  sph.radius *= 1.35; // empieza algo más lejos para que quepa la escena
   let filtro = FILTROS[0], marco = true;
 
   document.querySelectorAll('.panel-pausa').forEach((e) => e.remove());

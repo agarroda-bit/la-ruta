@@ -60,7 +60,7 @@ export function buildBoat({ stripe = '#1f9fd6', wood = '#8a5530', dark = '#4b2a1
   const hull = new THREE.Mesh(hullGeometry(stripe, wood, dark), hullMat);
   hull.castShadow = true; hull.receiveShadow = true;
   pitch.add(hull);
-  const woodM = M(wood), darkM = M(dark), metal = M('#8d99a6', { metalness: 0.5, roughness: 0.4 }), black = M('#222428');
+  const woodM = M(wood), darkM = M(dark), metal = M('#b9c3cc', { metalness: 0.3, roughness: 0.5 }), black = M('#555a60');
   // bancos y suelo
   const floor = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.06, 5.6), M('#a8743f')); floor.position.set(0, -0.2, -0.1); pitch.add(floor);
   for (const z of [-2.6, -0.8, 1.1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.08, 0.32), woodM); b.position.set(0, 0.22, z); b.castShadow = true; pitch.add(b); }
@@ -68,8 +68,8 @@ export function buildBoat({ stripe = '#1f9fd6', wood = '#8a5530', dark = '#4b2a1
   for (const s of [-1, 1]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 6.2), darkM); r.position.set(s * 0.8, 0.46, -0.3); pitch.add(r); }
 
   // motor: bloque sobre un pivote en la popa, palo largo hasta la hélice
-  const motor = new THREE.Group(); motor.position.set(0, 0.55, -3.25); pitch.add(motor);
-  const block = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.5, 0.8), M('#3c6e71')); block.position.set(0, 0.25, 0); block.castShadow = true; motor.add(block);
+  const motor = new THREE.Group(); motor.position.set(0, 0.5, -3.25); motor.scale.setScalar(0.68); pitch.add(motor);
+  const block = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.5, 0.8), M('#e05a47')); block.position.set(0, 0.25, 0); block.castShadow = true; motor.add(block);
   const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.62), metal); head.position.set(0, 0.58, 0); motor.add(head);
   const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.6, 5), black); pipe.position.set(0.25, 0.75, 0.1); motor.add(pipe);
   const tillerPivot = new THREE.Group(); tillerPivot.position.set(0, 0.35, 0.35); motor.add(tillerPivot);

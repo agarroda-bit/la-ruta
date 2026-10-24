@@ -138,14 +138,15 @@ void main(){
   water = mix(water, uShallow, smoothstep(0.4, 0.85, shallow));
   water = mix(water, uSand, smoothstep(0.15, 0.9, sand) * 0.7);
   // luz que atraviesa las crestas (falso "subsurface")
-  float sss = clamp(vH * 0.9 + 0.35, 0.0, 1.0) * pow(clamp(dot(V, -vec3(uSun.x, 0.0, uSun.z)) * 0.5 + 0.5, 0.0, 1.0), 2.0);
+  float sss = clamp(vH * 0.9 + 0.2, 0.0, 1.0) * pow(clamp(dot(V, -vec3(uSun.x, 0.0, uSun.z)) * 0.5 + 0.5, 0.0, 1.0), 2.0);
   water += vec3(0.02, 0.22, 0.2) * sss * (1.0 - shallow * 0.6);
   water *= 0.88 + 0.24 * clamp(vH + 0.5, 0.0, 1.0);
   // cáusticas en los bajíos
   #ifndef LOW
   if (shallow > 0.25 && dist < 140.0) {
     float c = caustic(q * 0.22 + vec2(17.0, 3.0), t * 0.6);
-    water += vec3(0.75, 1.0, 0.95) * c * smoothstep(0.25, 0.8, shallow) * 0.45 * (1.0 - smoothstep(60.0, 140.0, dist));
+    c = max(0.0, c - 0.7) * 3.3;  // solo las líneas brillantes
+    water += vec3(0.55, 0.95, 0.85) * c * smoothstep(0.35, 0.85, shallow) * 0.16 * (1.0 - smoothstep(60.0, 140.0, dist));
   }
   #endif
 
@@ -153,7 +154,7 @@ void main(){
   vec3 R = reflect(-V, N);
   vec3 sky = mix(uHorizon, uZenith, clamp(R.y * 1.8, 0.0, 1.0));
   float fres = 0.04 + 0.96 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
-  vec3 col = mix(water, sky, fres * 0.75 * (1.0 - shallow * 0.45));
+  vec3 col = mix(water, sky, fres * 0.6 * (1.0 - shallow * 0.6));
   float sd = max(dot(R, uSun), 0.0);
   col += uSunCol * (pow(sd, 600.0) * 9.0 + pow(sd, 60.0) * 0.35);
   // destellos sueltos (purpurina del sol)
@@ -164,14 +165,14 @@ void main(){
 
   // espuma (estilo dibujo: bordes nítidos)
   float fN = vnoise(q * 0.55 + vec2(t * 0.12, -t * 0.08)) * 0.6 + vnoise(q * 1.7 - vec2(t * 0.2, t * 0.1)) * 0.4;
-  float lace = vnoise(q * 2.6 + vec2(t * 0.3, 0.0));
-  float crest = smoothstep(0.74, 0.84, vH * 0.85 + fN * 0.3 + lace * 0.25 - 0.1);
+  float lace = vnoise(q * 4.2 + vec2(t * 0.3, 0.0));
+  float crest = smoothstep(0.82, 0.9, vH * 0.85 + fN * 0.25 + lace * 0.3 - 0.1) * smoothstep(0.45, 0.6, lace);
   float band = sin(shallow * 22.0 - t * 2.2 + fN * 4.0) * 0.5 + 0.5;
-  float shore = ring * smoothstep(0.55, 0.75, fN * 0.6 + band * 0.5 + lace * 0.25) + smoothstep(0.88, 0.99, ring);
-  float big = smoothstep(0.55, 0.9, vBig) * smoothstep(0.45, 0.6, fN * 0.6 + lace * 0.5);
+  float shore = ring * smoothstep(0.6, 0.78, fN * 0.5 + band * 0.5 + lace * 0.3) + smoothstep(0.9, 0.99, ring) * 0.85;
+  float big = smoothstep(0.7, 0.95, vBig) * smoothstep(0.55, 0.68, fN * 0.5 + lace * 0.6);
   float foam = clamp(crest * 0.75 + shore + big, 0.0, 1.0);
   foam = smoothstep(0.3, 0.55, foam);
-  col = mix(col, vec3(0.93, 0.99, 1.0) * (0.85 + 0.15 * max(dot(N, uSun), 0.0)), foam * 0.92);
+  col = mix(col, vec3(0.9, 0.98, 1.0) * (0.85 + 0.15 * max(dot(N, uSun), 0.0)), foam * 0.82);
 
   // sombra falsa de la barca
   if (uBoat.w > 0.0) {

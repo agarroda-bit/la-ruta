@@ -355,7 +355,13 @@ export function bannerMesh(text, w = 12, h = 1.8) {
   g.font = "96px 'Bungee', sans-serif"; g.lineWidth = 10; g.strokeStyle = '#1a1036';
   g.strokeText(text, 512, 86); g.fillText(text, 512, 86);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, toneMapped: false }));
+  // dos caras de una sola cara: se lee bien por delante y por detrás (sin espejo)
+  const grp = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); back.rotation.y = Math.PI;
+  grp.add(front, back);
+  return grp;
 }
 
 // Guirnalda colgante entre dos puntos: añade el cable al kit y devuelve las bombillas

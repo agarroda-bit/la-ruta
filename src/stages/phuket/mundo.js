@@ -552,16 +552,17 @@ export function makeWorld(ctx, Lg) {
     banner.position.set(-8, 5.4, 0); banner.rotation.y = -Math.PI / 2;
     villa.add(banner);
     // bailarines (siluetas que bailan)
-    const DC = ['#3d2c6e', '#5b3a8c', '#2a1d55', '#6a3f9e'];
+    const DC = ['#ff6f61', '#2ec4b6', '#ffd166', '#ff4fa3', '#7b5cff', '#8ac926', '#fff8ec', '#ff9f1c', '#3a86ff'];
+    const DS = ['#e8b48a', '#c68a5e', '#a86b43', '#f6d3b3', '#7a4a2c'];
     for (let i = 0; i < 9; i++) {
       const g = new THREE.Group();
       const kb = new Kit();
-      personKit(kb, { shirt: DC[i % 4], skin: DC[(i + 1) % 4], hair: '#1a1036', pants: '#1a1036', arms: false, hat: i % 3 === 0 ? 'paja' : null });
+      personKit(kb, { shirt: DC[i % DC.length], skin: DS[i % DS.length], hair: ['#1a1210', '#5a3a1e', '#c9a15a'][i % 3], pants: ['#2e4a7d', '#fff8ec', '#1b998b'][i % 3], arms: false, hat: i % 3 === 0 ? 'paja' : null });
       const body = kb.mesh(lit); body.castShadow = true; g.add(body);
       const arms = [];
       for (const s of [-1, 1]) {
         const piv = new THREE.Group(); piv.position.set(0.27 * s, 1.38, 0);
-        const ka = new Kit(); ka.add(G.box, DC[i % 4], { y: -0.25, sx: 0.11, sy: 0.5, sz: 0.12 });
+        const ka = new Kit(); ka.add(G.box, DC[i % DC.length], { y: -0.18, sx: 0.11, sy: 0.36, sz: 0.12 }); ka.add(G.ico0, DS[i % DS.length], { y: -0.42, s: 0.13 });
         piv.add(ka.mesh(lit)); g.add(piv); arms.push(piv);
       }
       const ang = (i / 9) * Math.PI * 2;

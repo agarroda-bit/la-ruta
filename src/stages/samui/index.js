@@ -48,7 +48,7 @@ export default {
 
     // luz: sol de tarde por delante (brillos en el agua hacia donde vamos)
     const sunDir = new THREE.Vector3(-0.45, 0.55, -0.7).normalize();
-    const hemi = new THREE.HemisphereLight('#d8f6ff', '#2f7f6a', 1.25); scene.add(hemi);
+    const hemi = new THREE.HemisphereLight('#e2f8ff', '#4f9a84', 1.55); scene.add(hemi);
     const sun = new THREE.DirectionalLight('#fff0d6', 2.6);
     sun.castShadow = !!q.shadows;
     sun.shadow.mapSize.set(q.shadowSize || 1024, q.shadowSize || 1024);
@@ -73,7 +73,7 @@ export default {
     scene.add(boat.group);
     boat.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     const driver = ctx.makeCharacter(ctx.looks[0]);
-    driver.group.position.set(0.15, -0.28, -2.45); driver.group.scale.setScalar(0.95);
+    driver.group.position.set(0.42, -0.28, -2.35); driver.group.scale.setScalar(0.95);
     boat.pitch.add(driver.group);
     const mate = ctx.makeCharacter(ctx.looks[1]);
     mate.group.position.set(0, -0.2, 2.15); mate.group.scale.setScalar(0.95);
@@ -96,11 +96,12 @@ export default {
     };
     st.velYaw = st.yaw;
     // tiempo "bueno" para las estrellas: recorrido + desvíos de las calas a buen ritmo
-    const goodTime = Math.round(L / 19.6 + 9);
+    const goodTime = Math.round(L / 13.3);          // ~1:50: una persona buena con las 3 calas
+    const okTime = Math.round(goodTime * 1.22);       // 2★ por tiempo, más holgado
 
     // ───────── olas grandes (series que llegan por el canal) ─────────
     const series = [];
-    for (let s = 150; s < L - 90; s += ctx.rng.range(115, 160)) {
+    for (let s = 240; s < L - 90; s += ctx.rng.range(115, 160)) {
       if (calas.some((c) => Math.abs(c.s - s) < 70)) continue;
       series.push({ s, n: ctx.rng.chance(0.4) ? 2 : 3, spawned: false });
     }
@@ -114,7 +115,7 @@ export default {
         Object.assign(r, { active: true, age: -k * 0.25, target: 1.35 + ctx.rng.range(-0.1, 0.15), prevAl: 999, done: false, dying: false });
       }
       se.spawned = true;
-      if (!st.waveHint) { st.waveHint = true; ctx.shout('🌊 ¡OLAS!', { size: 'peque', color: '#7cf5e6' }); ctx.toast('Cógelas <b>rectas</b> y con velocidad: ¡a volar! Cae recto y ganas turbo ⚡', 2600); }
+      if (!st.waveHint) { st.waveHint = true; ctx.shout('🌊 ¡OLAS!', { size: 'peque', color: '#7cf5e6' }); ui.hint('Cógelas <b>rectas</b> y con velocidad: ¡a volar! Cae recto y ganas turbo ⚡', 2600); }
       else audio.sfx('whoosh', { vol: 0.5 });
       return true;
     }
@@ -192,8 +193,9 @@ export default {
     };
     const updateHud = () => {
       const touchUI = input.lastDevice === 'touch' || input.forceTouch;
-      if (st.running) ui.turboMeter(turboHTML(), touchUI); else ui.hideMeter();
-      hud.set('calas', `<span class="sm-calas">${calas.map((c) => `<span class="${c.found ? 'si' : 'no'}">${c.emoji}</span>`).join(' ')}</span>`, 'izq');
+      if (st.running && !touchUI) ui.turboMeter(turboHTML(), false); else ui.hideMeter();
+      ui.turboButton(st.turbo, st.turboT > 0, st.running);
+      hud.set('calas', `<span class="sm-calas">Calas ${st.calas}/3${calas.filter((c) => c.found).map((c) => `<small>${c.emoji}</small>`).join('')}</span>`, 'izq');
       hud.set('olas', `🚩 ${st.gate}/${gates.length} <span style="opacity:.5">·</span> 🌊 ${st.olas}`, 'izq');
       hud.set('tiempo', `⏱ ${fmtTime(st.t + st.penalty)}`, 'centro');
     };
@@ -304,7 +306,8 @@ export default {
         ensureSound();
         st.running = true;
         ctx.raceStart(boat.group);
-        if (ghostBoat && ctx.ghost.spawn(ghostBoat.group, '#9ad7ff')) ctx.toast(`👻 Fantasma: ${esc(ctx.ghost.label || 'tu mejor vuelta')}`, 1800);
+        setTimeout(() => { if (!st.disposed && !st.done) ui.hint('Sigue la <b>flecha amarilla</b> por las boyas. Hay <b>3 calas</b> escondidas tras arcos de roca 🐢🏮🌴', 3200); }, 900);
+        if (ghostBoat && ctx.ghost.spawn(ghostBoat.group, '#9ad7ff')) ui.hint(`👻 Fantasma: ${esc(ctx.ghost.label || 'tu mejor vuelta')}`, 1800);
         audio.sfx('horn');
       },
       update(dt, realDt) {
@@ -341,7 +344,7 @@ export default {
             fx.emit(20, { x: st.x, y: st.y + 0.5, z: st.z }, { colors: ['#ffffff', '#ffe08a'], vel: { x: 0, y: 3, z: 0 }, velSpread: 5, life: 0.6 });
           } else if (st.noTurboCd <= 0) {
             st.noTurboCd = 1.2; audio.sfx('click', { pitch: 0.6 });
-            ctx.toast('Sin turbo: salta olas y cae recto ⚡', 1600);
+            ui.hint('Sin turbo: salta olas y cae recto ⚡', 1600);
           }
         }
       }
@@ -384,11 +387,11 @@ export default {
       if (Math.abs(loc.lat) > 120) {
         const a = path.at(st.s); const push = (Math.abs(loc.lat) - 120) * 0.2;
         st.x -= a.nx * Math.sign(loc.lat) * push; st.z -= a.nz * Math.sign(loc.lat) * push;
-        if (st.noTurboCd <= 0) { st.noTurboCd = 2; ctx.toast('¡Por ahí es mar abierto! Vuelve a las boyas', 1600); }
+        if (st.noTurboCd <= 0) { st.noTurboCd = 2; ui.hint('¡Por ahí es mar abierto! Vuelve a las boyas', 1600); }
       }
 
       // ── olas grandes ──
-      for (const se of series) if (!se.spawned && st.s > se.s - 170 && st.s < se.s + 20) spawnSeries(se);
+      for (const se of series) if (playing && !se.spawned && st.s > se.s - 170 && st.s < se.s + 20) spawnSeries(se);
       for (const r of ridges) {
         if (!r.active) continue;
         r.age += dt;
@@ -466,7 +469,7 @@ export default {
       if (playing && near && nd < 100 && !st.hinted.has(near.idx)) {
         st.hinted.add(near.idx);
         const frases = ['¡Gaviotas dando vueltas! Ahí detrás hay algo…', '¿Eso de ahí es un arco? ¡Pasa por debajo!', '¡Mira esas rocas! Seguro que esconden una cala.'];
-        ctx.toast(`<b>${esc(ctx.names[1])}:</b> ${frases[near.idx % 3]}`, 2400);
+        ui.hint(`<b>${esc(ctx.names[1])}:</b> ${frases[near.idx % 3]}`, 2400);
         audio.sfx('bell', { vol: 0.4 });
       }
       for (const c of calas) if (!c.found && playing && Math.hypot(c.x - st.x, c.z - st.z) < 13) discover(c);
@@ -513,8 +516,8 @@ export default {
       cam.orbit = damp(cam.orbit, cam.orbitT > 0 ? 1 : 0, 3, realDt);
       cam.yaw += angleDiff(cam.yaw, st.yaw * 0.6 + (st.yaw + angleDiff(st.yaw, st.velYaw)) * 0.4) * (1 - Math.exp(-4 * dt));
       let cy = cam.yaw + cam.orbit * cam.orbitSide * 1.25;
-      let dist = 7.6 + st.speed * 0.075 + cam.orbit * 2.5, hgt = 3.2 + cam.orbit * 1.5 - (st.air ? 0.5 : 0);
-      if (!st.running && !st.done) { cy = st.yaw + 2.3 + tAll * 0.12; dist = 11; hgt = 3.2; }
+      let dist = 8.8 + st.speed * 0.07 + cam.orbit * 2.5, hgt = 4.6 + cam.orbit * 1.2 - (st.air ? 0.4 : 0);
+      if (!st.running && !st.done) { cy = st.yaw + 0.55 + Math.sin(tAll * 0.3) * 0.15; dist = 12.5; hgt = 5.2; }
       if (st.done) { cam.finishA += dt * 0.3; cy = st.yaw + Math.PI * 0.75 + cam.finishA; dist = 12; hgt = 4.2; }
       let cx = st.x - Math.sin(cy) * dist, cz = st.z - Math.cos(cy) * dist;
       // que la cámara no se meta dentro de las rocas
@@ -525,7 +528,19 @@ export default {
       const camH = Math.max(sea.heightAt(cx, cz) + 2.2, sea.heightAt(cx + Math.sin(cy) * 3, cz + Math.cos(cy) * 3) + 1.8, st.y * 0.5 + hgt);
       tmpV.set(cx, camH, cz);
       camera.position.lerp(tmpV, 1 - Math.exp(-6 * dt));
-      camera.lookAt(st.x + fxv * 5 * (1 - cam.orbit), st.y + 1.3, st.z + fzv * 5 * (1 - cam.orbit));
+      camera.lookAt(st.x + fxv * 8 * (1 - cam.orbit), st.y + 1.5, st.z + fzv * 8 * (1 - cam.orbit));
+      // flecha de pantalla hacia la siguiente boya
+      const ngt = gates[st.gate];
+      if (playing && ngt && !etapa.debugCam) {
+        camera.updateMatrixWorld();
+        tmpV.set(ngt.x, 3.5, ngt.z).project(camera);
+        const behind = tmpV.z > 1;
+        let sx = behind ? -tmpV.x : tmpV.x, sy = behind ? -tmpV.y : tmpV.y;
+        const on = !behind && Math.abs(sx) < 0.86 && Math.abs(sy) < 0.78;
+        if (!on) { const kk = Math.max(Math.abs(sx) / 0.86, Math.abs(sy) / 0.72, 0.001); sx /= kk; sy /= kk; if (behind && sy > -0.3) sy = -0.3; }
+        const px = (sx * 0.5 + 0.5) * innerWidth, py = (-sy * 0.5 + 0.5) * innerHeight - (on ? 46 : 0);
+        ui.pointer(true, px, py, on, (-Math.atan2(sy, sx) * 180) / Math.PI, Math.round(Math.hypot(ngt.x - st.x, ngt.z - st.z)));
+      } else ui.pointer(false);
       if (etapa.debugCam) { const d = etapa.debugCam; camera.position.set(d.x, d.y, d.z); camera.lookAt(d.lx, d.ly, d.lz); }
       const fov = 60 + st.speed * 0.38 + (turboOn ? 6 : 0);
       if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = damp(camera.fov, fov, 3, dt); camera.updateProjectionMatrix(); }
@@ -548,15 +563,15 @@ export default {
     function finish(win) {
       if (st.done) return;
       st.done = true; st.running = false; st.win = win;
-      ui.hideMeter(); ui.turbo(false);
+      ui.hideMeter(); ui.turbo(false); ui.pointer(false);
       const time = st.t + st.penalty;
       const goodT = time <= goodTime;
-      const stars = !win ? 0 : goodT && st.calas === 3 ? 3 : goodT || st.calas >= 2 ? 2 : 1;
+      const stars = !win ? 0 : goodT && st.calas === 3 ? 3 : time <= okTime || st.calas >= 2 ? 2 : 1;
       st.stars = stars;
       if (win && st.rockHits === 0) ctx.sticker('sin-rozar');
       if (win) audio.sfx('firework');
       const lines = [];
-      if (win && stars < 3) lines.push(`Para 3 estrellas: menos de ${fmtTime(goodTime)} y las 3 calas.`);
+      if (win && stars < 3) lines.push(`3 estrellas: menos de ${fmtTime(goodTime)} y las 3 calas. 2 estrellas: menos de ${fmtTime(okTime)} o 2 calas.`);
       else if (win && st.rockHits === 0) lines.push('Bonita vuelve sin un rasguño. Nok estará orgullosa.');
       else if (win) lines.push('Bonita vuelve con algún rasguño… Ni una palabra a Nok.');
       const score = !win ? st.gatesOk * 30 + st.calas * 300 : Math.max(0, Math.round((goodTime * 1.6 - time) * 30)) + st.calas * 500 + st.olas * 60 + st.limpias * 40 + st.gatesOk * 30 - st.rockHits * 40;

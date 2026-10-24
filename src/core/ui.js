@@ -65,6 +65,8 @@ export const hud = {
 
 // Texto grande que aparece en el centro y se va ("¡TURBO!", "+100", "¡KO!")
 export function shout(text, { color = '', size = '', ms = 1100, cls = '' } = {}) {
+  // un solo grito a la vez: el nuevo sustituye al anterior (los de la cuenta atrás van aparte)
+  if (!cls.includes('cuenta')) root.querySelectorAll('.grito:not(.cuenta)').forEach((g) => g.remove());
   const e = h('div', 'grito ' + cls + (size ? ' ' + size : ''), text);
   if (color) e.style.color = color;
   root.appendChild(e);

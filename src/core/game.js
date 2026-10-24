@@ -254,7 +254,7 @@ export function openSettings() {
     <label>Música <input type="range" min="0" max="1" step="0.05" value="${s.music}" data-k="music"></label>
     <label>Efectos <input type="range" min="0" max="1" step="0.05" value="${s.sfx}" data-k="sfx"></label>
     <div class="aj-fila"><span>Calidad</span><div class="opciones">${q('auto', 'Auto')}${q('baja', 'Baja')}${q('media', 'Media')}${q('alta', 'Alta')}</div></div>
-    <label class="aj-check"><input type="checkbox" data-k="battery" ${s.battery ? 'checked' : ''}> ✈ Modo avión / ahorro de batería <small>(30 fps, sin sombras)</small></label>
+    <label class="aj-check"><input type="checkbox" data-k="battery" ${s.battery ? 'checked' : ''}> <span>✈ Modo avión / ahorro de batería<small>30 fps y sin sombras: la batería dura mucho más</small></span></label>
     <label class="aj-check"><input type="checkbox" data-k="vibration" ${s.vibration ? 'checked' : ''}> Vibración</label>
     <label class="aj-check"><input type="checkbox" data-k="rain" ${s.rain ? 'checked' : ''}> Lluvia de monzón en Bangkok</label>
     <div class="aj-fps">Calidad actual: <b>${engine.qualityName}</b> · ${Math.round(engine.fps)} fps</div>`;
@@ -326,8 +326,8 @@ async function onFinish(def, mod, r, ghostRec, mode, ghostData) {
   el.innerHTML = `
     <div class="res-etapa">ETAPA ${def.num} · ${esc(def.name.toUpperCase())}${mode === 'reto' ? ' · RETO ' + ddmm() : ''}</div>
     <h2>${esc(title)}</h2>
-    <div class="res-estrellas">${starsHTML(0)}</div>
-    <div class="res-puntos"><span class="res-num">0</span><small>puntos</small></div>
+    ${r.duel ? '' : `<div class="res-estrellas">${starsHTML(0)}</div>
+    <div class="res-puntos"><span class="res-num">0</span><small>puntos</small></div>`}
     ${newBest && r.win ? '<div class="res-record">¡NUEVO RÉCORD!</div>' : ''}
     ${ghostMsg ? `<div class="res-record">${ghostMsg}</div>` : ''}
     <div class="res-stats">${(r.stats || []).map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>
@@ -335,8 +335,10 @@ async function onFinish(def, mod, r, ghostRec, mode, ghostData) {
     <div class="res-botones"></div>`;
   uiRoot().appendChild(el);
   const bx = el.querySelector('.res-botones');
-  bx.append(button('↻ Repetir', () => playStage(id, { mode })));
-  if (next && r.win && mode === 'normal' && isUnlocked(next.id)) bx.append(button(`Siguiente: ${next.name} ▶`, () => playStage(next.id), 'grande'));
+  // orden fijo: principal (siguiente o repetir) ancho arriba; luego el resto por parejas
+  const nextOk = next && r.win && mode === 'normal' && isUnlocked(next.id);
+  if (nextOk) bx.append(button(`Siguiente: ${next.name} ▶`, () => playStage(next.id), 'grande'));
+  bx.append(button('↻ Repetir', () => playStage(id, { mode }), nextOk ? '' : 'grande'));
   bx.append(button('🗺 Mapa', () => exitToMap()));
   if (mod.ghost && r.win && r._frames && mode !== 'compi') {
     bx.append(button('📱 Pasa el móvil', () => {
@@ -347,14 +349,12 @@ async function onFinish(def, mod, r, ghostRec, mode, ghostData) {
       playStage(id, { mode: 'compi' });
     }));
   }
-  if (mode === 'reto' || r.win) {
-    bx.append(button('💬 Compartir', () => share(def, r, mode)));
-  }
+  if (mode === 'reto' || r.win) bx.append(button('💬 Compartir', () => share(def, r, mode)));
   const finale = () => import('../screens/final.js').then((m) => { teardown(); m.openFinale(STAGES, { onClose: () => game.onExit && game.onExit() }); });
   if (id === 'shanghai' && r.win) bx.append(button('🎬 Créditos finales', finale, 'grande'));
   // animación: estrellas una a una y puntos que suben
   const starEls = el.querySelectorAll('.estrella');
-  countUp(el.querySelector('.res-num'), r.score || 0, 1000);
+  if (!r.duel) countUp(el.querySelector('.res-num'), r.score || 0, 1000);
   for (let i = 0; i < stars; i++) {
     await wait(380);
     starEls[i].classList.add('si', 'pum');

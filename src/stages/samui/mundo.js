@@ -20,7 +20,7 @@ export function makePath(rng) {
   const SEG = 112, N = 14;
   for (let i = 0; i < N; i++) {
     ctrl.push(new THREE.Vector3(x, 0, z));
-    if (i >= 1) h += rng.range(-0.8, 0.8);
+    if (i >= 2) h += rng.range(-0.8, 0.8) * (i === 2 ? 0.5 : 1);
     h = clamp(h, Math.PI - 1.25, Math.PI + 1.25);
     x += Math.sin(h) * SEG; z += Math.cos(h) * SEG;
   }
@@ -91,7 +91,7 @@ const ROCK = { light: col('#e6d6b6'), warm: col('#d6915a'), dark: col('#5f574f')
 const GREENS = ['#2f8f3a', '#3fa34d', '#1f6e30', '#58b04a', '#2a7d3f', '#6cbf4a'].map(col);
 
 // Torre de karst: cilindro deformado con muesca en la línea de flotación, copa de selva, lianas y cueva.
-function karst(x, z, r, h, vr, { canopy = true, lianas = true, cave = false, caveAng = 0 } = {}) {
+function karst(x, z, r, h, vr, { canopy = true, lianas = true, cave = false, caveAng = 0, bright = false } = {}) {
   const out = [];
   const seg = 9 + Math.floor(vr() * 4), hs = 9;
   const g = new THREE.CylinderGeometry(1, 1, 1, seg, hs, false);
@@ -122,12 +122,15 @@ function karst(x, z, r, h, vr, { canopy = true, lianas = true, cave = false, cav
     const colI = Math.floor(((ang + Math.PI) / (Math.PI * 2)) * seg), rowI = Math.floor(yN * hs);
     const hsh = Math.abs(Math.sin(colI * 12.9898 + rowI * 78.233 + ph) * 43758.5453) % 1;
     const st = Math.sin(colI * 2.1 + ph) + Math.sin(colI * 0.7 + ph * 1.7) * 0.6;
-    if (yN < 0.05) c.copy(ROCK.wet);
+    const caveD = cave ? Math.abs(Math.atan2(Math.sin(ang - caveAng), Math.cos(ang - caveAng))) : 9;
+    if (caveD < 0.32 && yN < 0.22 - caveD * 0.3) c.set('#3a2c24');
+    else if (yN < 0.05) c.copy(ROCK.wet);
     else if (up > 0.45 || yN > 0.84 || (yN > 0.62 && hsh < 0.22)) c.copy(GREENS[Math.floor(hsh * 4)]);
     else {
       c.copy(ROCK.light);
       if (st > 0.85) c.lerp(ROCK.warm, 0.55 + hsh * 0.3); else if (st < -0.9) c.lerp(ROCK.dark, 0.5 + hsh * 0.3);
-      if (yN < 0.2) c.lerp(ROCK.wet, (0.2 - yN) * 2.5);
+      if (bright) c.set('#f2e6cc').lerp(ROCK.warm, st > 0.85 ? 0.4 : 0);
+      else if (yN < 0.2) c.lerp(ROCK.wet, (0.2 - yN) * 2.5);
       c.multiplyScalar(0.94 + hsh * 0.12);
     }
     return c;
@@ -157,11 +160,6 @@ function karst(x, z, r, h, vr, { canopy = true, lianas = true, cave = false, cav
       const rr = topR * 1.05 + 0.3;
       out.push(prep(new THREE.BoxGeometry(0.22, len, 0.22), mat(x + Math.cos(a) * rr, topY - len / 2, z + Math.sin(a) * rr, 0, 0, (vr() - 0.5) * 0.15), vr() < 0.5 ? '#2d5a2a' : '#3e7a34'));
     }
-  }
-  if (cave) {
-    const cr = Math.min(r * 0.42, 6);
-    const cg = new THREE.CircleGeometry(cr, 8, 0, Math.PI);
-    out.push(prep(cg, mat(x + Math.cos(caveAng) * r * 0.95, -0.5, z + Math.sin(caveAng) * r * 0.86, 0, Math.PI / 2 - caveAng, 0, 1, 1.3, 1), '#16120f'));
   }
   return out;
 }
@@ -327,7 +325,7 @@ export function buildWorld({ scene, rng, vr, quality, makeCharacter }) {
     const angDist = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
     let edgeA = null, edgeB = null;
     for (let a = 0; a < Math.PI * 2 - 0.01; a += 0.3) {
-      if (angDist(a, aEntry) < 0.4 || angDist(a, aExit) < 0.4) continue;
+      if (angDist(a, aEntry) < 0.56 || angDist(a, aExit) < 0.56) continue;
       const r = 5.6 + rng() * 1.8, rr = CALA_R + r * 0.55;
       const x = c.x + Math.cos(a) * rr, z = c.z + Math.sin(a) * rr;
       const h = 16 + rng() * 18;
@@ -434,12 +432,16 @@ export function buildWorld({ scene, rng, vr, quality, makeCharacter }) {
 
   // rocas sueltas en el canal (obstáculos)
   const rocks = [];
-  for (let s = 70; s < L - 45; s += rng.range(42, 70)) {
-    if (gates.some((g) => Math.abs(g.s - s) < 22) || calas.some((c) => Math.abs(c.s - s) < 45)) continue;
-    const a = path.at(s), lat = rng.range(-17, 17), r = rng.range(1.7, 3.3), h = rng.range(3, 8);
+  const headAt = (s) => { const a = path.at(clamp(s, 0, L)); return Math.atan2(a.tx, a.tz); };
+  const turnBefore = (s) => { let m = 0; for (let k = 10; k <= 60; k += 10) m = Math.max(m, Math.abs(Math.atan2(Math.sin(headAt(s) - headAt(s - k)), Math.cos(headAt(s) - headAt(s - k))))); return m; };
+  for (let s = 110; s < L - 45; s += rng.range(62, 95)) {
+    const lat = rng.range(-15, 15), r = rng.range(2.2, 3.4), h = rng.range(8, 14);
+    if (gates.some((g) => Math.abs(g.s - s) < 24) || calas.some((c) => Math.abs(c.s - s) < 50)) continue;
+    if (turnBefore(s) > 0.3) continue; // nada justo a la salida de una curva cerrada
+    const a = path.at(s);
     const x = a.x + a.nx * lat, z = a.z + a.nz * lat;
     rocks.push({ x, z, r }); obstacles.push({ x, z, r: r * 0.95, kind: 'roca' }); islands.push({ x, z, r: r * 0.8 });
-    for (const g of karst(x, z, r, h, vr, { canopy: r > 2.6, lianas: false })) addGeo(g, x, z);
+    for (const g of karst(x, z, r, h, vr, { canopy: true, lianas: false, bright: true })) addGeo(g, x, z);
   }
 
   // el mono en su roca, al borde del canal
@@ -667,12 +669,18 @@ export function buildWorld({ scene, rng, vr, quality, makeCharacter }) {
     gr.addColorStop(0, 'rgba(0,255,0,1)'); gr.addColorStop(clamp((o.r * 1.04 - r0) / (r1 - r0), 0, 1), 'rgba(0,235,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
     g2.fillStyle = gr; g2.beginPath(); g2.arc(cx, cz, r1 * k, 0, Math.PI * 2); g2.fill();
   }
+  for (const o of rocks) {
+    const [cx, cz] = toC(o.x, o.z), r0 = o.r * 0.6, r1 = o.r + 7;
+    const gr = g2.createRadialGradient(cx, cz, r0 * k, cx, cz, r1 * k);
+    gr.addColorStop(0, 'rgba(0,255,0,1)'); gr.addColorStop(0.45, 'rgba(0,255,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
+    g2.fillStyle = gr; g2.beginPath(); g2.arc(cx, cz, r1 * k, 0, Math.PI * 2); g2.fill();
+  }
   for (const b of beaches) {
     radial(b.x, b.z, 2, b.rx + 16, '255,0,0', 0.9);
-    radial(b.x, b.z, 2, b.rx + 9, '0,0,255', 0.9);
+    radial(b.x, b.z, 2, b.rx + 7, '0,0,255', 0.6);
     radial(b.x, b.z, b.rx * 0.7, b.rx * 1.05 + 1, '0,190,0', 0.8);
   }
-  for (const c of calas) { radial(c.x, c.z, 0, CALA_R + 4, '255,0,0', 0.85); radial(c.x, c.z, 0, CALA_R - 2, '0,0,255', 0.32); }
+  for (const c of calas) { radial(c.x, c.z, 0, CALA_R + 4, '255,0,0', 0.7); radial(c.x, c.z, 0, CALA_R - 2, '0,0,255', 0.15); }
   // bancos de arena sueltos
   for (let i = 0; i < 26; i++) {
     const s = vr() * L, a = path.at(s), lat = (vr() < 0.5 ? -1 : 1) * (CHANNEL * 0.4 + vr() * 50);

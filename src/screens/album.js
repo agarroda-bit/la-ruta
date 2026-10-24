@@ -20,6 +20,8 @@ export function openAlbum({ onClose } = {}) {
         <div><b>${st.turistas | 0}</b><span>turistas</span></div>
         <div><b>${st.golpes | 0}</b><span>golpes</span></div>
         <div><b>${st.olas | 0}</b><span>olas saltadas</span></div>
+        <div><b>${st.atajos | 0}</b><span>atajos</span></div>
+        <div><b>${st.energia | 0}</b><span>orbes</span></div>
         <div><b>${st.partidas | 0}</b><span>partidas</span></div>
         <div><b>${st.fotos | 0}</b><span>fotos</span></div>
       </div>

@@ -204,7 +204,7 @@ async function showMap(focusId) {
   }
 }
 
-function closeMap() { if (mapUI) { mapUI._cleanup(); mapUI.remove(); mapUI = null; } }
+function closeMap() { document.querySelectorAll('.dialogo').forEach((d) => d.remove()); document.body.classList.remove('con-dialogo'); if (mapUI) { mapUI._cleanup(); mapUI.remove(); mapUI = null; } }
 
 async function startStage(id, mode = 'normal') {
   if (map.focusStage) map.focusStage(id);
