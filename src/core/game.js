@@ -25,7 +25,7 @@ export function isUnlocked(id) {
   const i = STAGES.findIndex((s) => s.id === id);
   if (i <= 0) return true;
   const prev = save.data.stages[STAGES[i - 1].id];
-  return !!(prev && prev.stars > 0);
+  return !!(prev && (prev.stars > 0 || prev.skipped));
 }
 
 // ───────── pegatinas ─────────
@@ -281,6 +281,7 @@ async function onFinish(def, mod, r, ghostRec, mode, ghostData) {
   const newBest = !r.noRecord && (r.score || 0) > (st.best || 0);
   const newTime = r.win && r.time && r.time < (st.bestTime || Infinity);
   const firstClear = r.win && stars > 0 && !(st.stars > 0);
+  if (!r.win && !r.duel && mode === 'normal') st.losses = (st.losses || 0) + 1;
   if (mode !== 'compi') {
     st.stars = Math.max(st.stars || 0, stars);
     if (newBest) st.best = r.score;
@@ -341,6 +342,10 @@ async function onFinish(def, mod, r, ghostRec, mode, ghostData) {
   const finalWin = id === 'shanghai' && r.win;
   bx.append(button('↻ Repetir', () => playStage(id, { mode }), nextOk || finalWin ? '' : 'grande'));
   bx.append(button('🗺 Mapa', () => exitToMap()));
+  // en el avión nadie debe quedarse atascado: tras 2 derrotas se puede seguir la ruta
+  if (!r.win && next && (st.losses || 0) >= 2 && !isUnlocked(next.id)) {
+    bx.append(button(`Seguir la ruta: ${next.name} ▶`, () => { st.skipped = true; save.flush(); playStage(next.id); }));
+  }
   if (mod.ghost && r.win && r._frames && mode !== 'compi') {
     bx.append(button('📱 Pasa el móvil', () => {
       const name = save.data.names[1];

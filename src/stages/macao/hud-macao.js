@@ -78,12 +78,21 @@ export function makeMacaoUI(hud) {
     say(text, secs = 2.6) { bubbleTxt.textContent = text; bubbleT = secs; bubble.classList.remove('mc-oculto'); },
     get talking() { return bubbleT > 0; },
     // x,y en píxeles de pantalla (o null para esconder)
-    bubbleAt(x, y, dt) {
+    hideBubble() { bubbleT = 0; bubble.classList.add('mc-oculto'); },
+    // franja propia de la burbuja: a la izquierda, bajo la columna del HUD o bajo el retrovisor
+    bubbleStrip(mirrorOn, dt) {
+      const izq = ruta.closest('.hud') && ruta.closest('.hud').querySelector('.hud-izq');
+      let y = izq ? izq.getBoundingClientRect().bottom + 10 : 140;
+      if (mirrorOn) y = Math.max(y, mirrorRect.y + mirrorRect.h + 20);
+      if (!warnEl.classList.contains('mc-oculto')) { bubbleT -= dt; bubble.classList.add('mc-oculto'); return; }
+      this.bubbleAt(12, y, dt, true);
+    },
+    bubbleAt(x, y, dt, exact) {
       bubbleT -= dt;
       if (bubbleT <= 0 || x == null) { bubble.classList.add('mc-oculto'); return; }
       bubble.classList.remove('mc-oculto');
       const bw = bubble.offsetWidth || 180;
-      const cx = Math.max(8, Math.min(innerWidth - bw - 8, x - bw * 0.2));
+      const cx = exact ? x : Math.max(8, Math.min(innerWidth - bw - 8, x - bw * 0.2));
       bubble.style.left = cx + 'px'; bubble.style.top = Math.max(70, y) + 'px';
     },
     dispose() { removeEventListener('resize', layout); style.remove(); mirror.remove(); warnEl.remove(); bubble.remove(); },

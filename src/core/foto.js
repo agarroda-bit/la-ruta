@@ -68,7 +68,7 @@ export function openPhotoMode(current) {
   const ui = h('div', 'foto-ui no-ctrl');
   ui.innerHTML = `
     <div class="foto-arriba"><div class="foto-filtros"></div></div>
-    <div class="foto-ayuda">Arrastra para mover la cámara · pellizca para acercar</div>
+    <div class="foto-ayuda">${matchMedia('(pointer: coarse)').matches ? 'Arrastra para mover la cámara · pellizca para acercar' : 'Arrastra o usa las flechas para mover la cámara · rueda para acercar'}</div>
     <div class="foto-marco-prev"><span>LA RUTA · ${esc(current.def.name.toUpperCase())}</span></div>
     <div class="foto-abajo"></div>`;
   uiRoot().appendChild(ui);

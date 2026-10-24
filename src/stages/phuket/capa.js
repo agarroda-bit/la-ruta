@@ -57,11 +57,11 @@ export function makeCapa(ctx, camera) {
 
   // suma de cocos: un solo número al lado de la moto que se va acumulando
   let suma = null;
-  function sum(pts, bikePos, mult) {
+  function sum(pts, bikePos, mult, gold = false) {
     const sp = toScreen(v.copy(bikePos).setY(bikePos.y + 1.2)); if (!sp.ok) return;
     if (!suma) { suma = { e: document.createElement('div'), total: 0, t: 0 }; suma.e.className = 'pk-suma'; capa.appendChild(suma.e); }
-    suma.total += pts; suma.t = 0; suma.e.classList.remove('sale');
-    suma.e.innerHTML = `+${suma.total}${mult > 1 ? `<small>RACHA x${mult}</small>` : ''}`;
+    suma.total += pts; suma.t = 0; suma.e.classList.remove('sale'); suma.gold = gold || (suma.gold && suma.t < 1);
+    suma.e.innerHTML = `+${suma.total}${gold ? '<small style="color:#ffd166">¡DORADO!</small>' : mult > 1 ? `<small>RACHA x${mult}</small>` : ''}`;
     suma.e.classList.remove('pop'); void suma.e.offsetWidth; suma.e.classList.add('pop');
     suma.anchor = bikePos;
   }

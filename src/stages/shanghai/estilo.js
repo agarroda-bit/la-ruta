@@ -45,7 +45,11 @@ const CSS = `
 .controles .btn-tactil[data-id="izq"] span, .controles .btn-tactil[data-id="der"] span { font-size: 40px; line-height: .8; }
 .controles .btn-tactil[data-id="boost"].listo { animation: shturbo .45s infinite alternate; }
 @keyframes shturbo { to { transform: scale(1.12); box-shadow: 0 0 26px #ff4fa3, 0 5px 0 #1a1036; } }
-.controles .btn-tactil[data-id="boost"].vacio { filter: saturate(.35) brightness(.8); }
+.controles .btn-tactil[data-id="boost"] { width: 74px; height: 74px; font-size: 13px; }
+.controles .btn-tactil[data-id="boost"].vacio { filter: saturate(.35) brightness(.8); opacity: .45; }
+.hud.sh-ultimo::after { content: ''; position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 90px rgba(255, 176, 0, .45); animation: shultimo .5s infinite alternate; }
+@keyframes shultimo { from { opacity: .45; } to { opacity: 1; } }
+.tema-shanghai.sh-ultimo .hud-ruta { border-color: #ffd166; }
 `;
 
 export function injectStyle() {

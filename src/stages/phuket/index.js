@@ -12,7 +12,7 @@ import { makeSfx } from './sonidos.js';
 import { makeCapa } from './capa.js';
 
 const LG = 3200;           // metros de salida a meta
-const TIME_LIMIT = 117;    // segundos de sol
+const TIME_LIMIT = 120;    // segundos de sol
 const T_MARGEN = 16;       // margen para la 2ª estrella (y la 3ª con cocos)
 const COCO_3 = 0.65;       // fracción de cocos para la 3ª estrella
 const MK0 = S0 + 0.775 * LG, MK_GATES = 7, MK_GAP = 22, MK1 = MK0 + MK_GATES * MK_GAP; // mercado nocturno
@@ -281,7 +281,7 @@ export default {
       solI.style.setProperty('--k', k.toFixed(3));
       const txt = fmtTime(left); if (solSpan.textContent !== txt) solSpan.textContent = txt;
       solEl.classList.toggle('prisa', left < 15 && st.phase === 'carrera');
-      ctx.hud.set('cocos', `🥥 ${st.cocos}<small style="opacity:.6;font-size:.7em">/${totalCocos}</small>`, 'izq');
+      ctx.hud.set('cocos', innerWidth < 500 ? `🥥 ${st.cocos}` : `🥥 ${st.cocos}<small style="opacity:.6;font-size:.7em">/${totalCocos}</small>`, 'izq');
       if (st.mult > 1) { const e = ctx.hud.set('combo', `RACHA x${st.mult}`, 'izq'); e.classList.toggle('x3', st.mult >= 3); } else ctx.hud.remove('combo');
       ctx.hud.bar('prog', clamp((st.s - S0) / LG, 0, 1), 'VILLA 🏡', 'centro', '#ff6f61');
       const btn = document.querySelector('.controles .btn-tactil[data-id="boost"]');
@@ -347,7 +347,7 @@ export default {
       const pts = (gold ? 50 : 10) * st.mult + (bonus ? 20 : 0);
       st.score += pts;
       st.fuel = Math.min(1, st.fuel + (gold ? 0.2 : 0.07));
-      if (gold) { sfx.combo(4); capa.num(`¡DORADO! +${pts}`, pos, 'grande'); fxAdd.emit(8, pos, { colors: ['#ffd166', '#fff3b0', '#ffb703'], vel: { x: 0, y: 3, z: 0 }, velSpread: 4, life: 0.5, size: 0.4 }); }
+      if (gold) { sfx.combo(4); capa.sum(pts, bike.position, st.mult, true); fxAdd.emit(8, pos, { colors: ['#ffd166', '#fff3b0', '#ffb703'], vel: { x: 0, y: 3, z: 0 }, velSpread: 4, life: 0.5, size: 0.4 }); }
       else if (bonus) capa.num(`¡COCO RECUPERADO! +${pts}`, pos, 'grande'); else capa.sum(pts, bike.position, st.mult);
       audio.sfx('coin-combo', { pitch: Math.pow(2, Math.min(st.combo - 1, 14) / 12), vol: 0.8 });
       sfx.coco(st.combo - 1);
@@ -457,7 +457,7 @@ export default {
         }
       }
       // mercado nocturno
-      if (!st.mkIn && st.s > MK0 - 35) { st.mkIn = true; st.mkCrash = st.crashes; grito('¡MERCADO NOCTURNO!', { color: '#ffd166' }, 4); capa.say(0, '¡Zigzag entre los carritos! ¡Los cocos dorados valen x5!', anchor0, 2600); audio.sfx('crowd-ooh', { vol: 0.6 }); }
+      if (!st.mkIn && st.s > MK0 - 35) { st.mkIn = true; st.mkCrash = st.crashes; grito('¡MERCADO NOCTURNO!', { color: '#ffd166' }, 4); capa.say(0, '¡Zigzag! Los dorados valen x5.', anchor0, 2200); audio.sfx('crowd-ooh', { vol: 0.6 }); }
       if (st.mkIn && !st.mkOut && st.s > MK1 + 4) {
         st.mkOut = true;
         if (st.crashes === st.mkCrash) { st.score += 300; grito('¡ENHEBRADO PERFECTO! +300', { color: '#2ec4b6' }, 4); audio.sfx('crowd-cheer', { vol: 0.7 }); sfx.fiesta(); st.fuel = 1; }

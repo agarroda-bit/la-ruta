@@ -5,7 +5,8 @@ import { flat, glow, canvasTexture } from '../../core/util.js';
 import { DECK, LANES, Z } from './escenario.js';
 
 export const FREIGHT_LEN = 38; // tramo (en metros del jugador) en el que el mercancías ocupa su vía
-const FREIGHT_K = 0.6;          // el mercancías avanza hacia ti al 60 % de tu velocidad
+const FREIGHT_K = 0.6;
+export const ULTIMO = Z.BUND - 1050; // empieza el último tramo          // el mercancías avanza hacia ti al 60 % de tu velocidad
 
 export function generar(rng) {
   const hazards = [], orbs = [];
@@ -14,10 +15,10 @@ export function generar(rng) {
   const lane1 = () => (rng.chance(0.5) ? 1 : rng.pick([0, 2]));
   const others = (l) => [0, 1, 2].filter((x) => x !== l);
   const CLIMAX_TRENES = Z.RIVER + 650, CLIMAX_PUERTAS = Z.BUND - 520;
-  let s = 340, prevFree = 1, n = 0, doneTrains = false, doneGates = false;
+  let s = 340, prevFree = 1, n = 0, doneTrains = false, doneGates = false, cadenaN = 0;
   while (s < Z.BUND - 60) {
     const zone = s < Z.CITY ? 0 : s < Z.RIVER ? 1 : 2;
-    let blocked = [], gap, trainLen = 0;
+    let blocked = [], gap, trainLen = 0, cadena = false;
     if (zone === 2 && !doneTrains && s >= CLIMAX_TRENES) {
       // clímax 1: tres mercancías de frente seguidos, cada uno por un carril
       doneTrains = true;
@@ -35,7 +36,8 @@ export function generar(rng) {
     }
     let types = zone === 0 ? (s < 800 ? ['obras', 'dron'] : ['obras', 'dron', 'tren', 'obras', 'dron'])
       : zone === 1 ? ['obras2', 'combo', 'tren', 'puerta', 'dron', 'combo', 'trenobras']
-        : ['obras2', 'combo', 'tren', 'puerta', 'trenobras', 'combo', 'puerta'];
+        : s >= ULTIMO ? ['cadena', 'trenobras', 'combo', 'cadena', 'obras2', 'trenobras']
+          : ['obras2', 'combo', 'tren', 'puerta', 'trenobras', 'cadena', 'cadena'];
     if (n === 0) types = ['obras'];
     if (n === 2) types = ['tren'];
     const type = rng.pick(types);
@@ -43,13 +45,20 @@ export function generar(rng) {
     else if (type === 'tren') { blocked = [lane1()]; H('tren', s, blocked); trainLen = FREIGHT_LEN; }
     else if (type === 'obras2' || type === 'puerta') { const o = rng.int(0, 2); blocked = others(o); H(type === 'puerta' ? 'puerta' : 'obras', s, blocked); }
     else if (type === 'combo') { const o = rng.int(0, 2); blocked = others(o); H('obras', s, [blocked[0]]); H('dron', s, [blocked[1]]); }
+    else if (type === 'cadena') {
+      // obras en el centro y otro lateral; 55 m detrás, un mercancías por el lateral libre: dos cambios seguidos
+      const L = rng.pick([0, 2]); blocked = others(L);
+      H('obras', s, blocked, cadenaN++ === 0 ? { anuncio: '¡DOBLE CAMBIO!' } : {}); H('tren', s + 55, [L]);
+      trainLen = 55 + FREIGHT_LEN; cadena = true;
+      for (let k = 2; k <= 5; k++) orbs.push({ s: s + k * 9, lane: 1 });
+    }
     else if (type === 'trenobras') { const o = rng.int(0, 2); blocked = others(o); const [a, b2] = rng.chance(0.5) ? blocked : [blocked[1], blocked[0]]; H('tren', s, [a]); H('obras', s, [b2]); trainLen = FREIGHT_LEN; }
     const free = [0, 1, 2].filter((l) => !blocked.includes(l));
     // orbes guía en un carril libre (el más cercano al anterior)
     const guide = free.reduce((a2, b2) => (Math.abs(b2 - prevFree) < Math.abs(a2 - prevFree) ? b2 : a2));
     for (let k = 4; k >= 1; k--) orbs.push({ s: s - k * 7, lane: guide });
-    if (trainLen) for (let k = 1; k <= 3; k++) orbs.push({ s: s + k * 9, lane: guide });
-    gap = zone === 0 ? rng.range(150, 195) : zone === 1 ? rng.range(108, 142) : rng.range(96, 126);
+    if (trainLen && !cadena) for (let k = 1; k <= 3; k++) orbs.push({ s: s + k * 9, lane: guide });
+    gap = zone === 0 ? rng.range(150, 195) : zone === 1 ? rng.range(108, 142) : s >= ULTIMO ? rng.range(82, 104) : rng.range(96, 126);
     gap += trainLen;
     // cadena de orbes en el hueco hasta el siguiente: recta o en zigzag
     const from = s + (trainLen ? trainLen + 26 : 24), to = s + gap - 40;
@@ -69,7 +78,7 @@ export function generar(rng) {
   // quita orbes que caigan encima de un obstáculo de su carril
   const clean = orbs.filter((o) => !hazards.some((h) => h.lanes.includes(o.lane) && o.s > h.s - 12 && o.s < h.s + (h.len || 0) + 10));
   clean.sort((a2, b2) => a2.s - b2.s);
-  for (const o of clean) o.got = false;
+  for (const o of clean) { o.got = false; o.gold = o.s >= ULTIMO; o.v = o.gold ? 3 : 1; }
   return { hazards, orbs: clean };
 }
 
@@ -248,8 +257,10 @@ export function animateHazards(hazards, sp, t, dt) {
 // ───────── orbes ─────────
 export function makeOrbs(scene, orbs) {
   const n = orbs.length;
-  const core = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.55, 0), new THREE.MeshBasicMaterial({ color: new THREE.Color('#5ef0ff').multiplyScalar(2.2), toneMapped: false }), n);
-  const halo = new THREE.InstancedMesh(new THREE.SphereGeometry(1.15, 10, 8), new THREE.MeshBasicMaterial({ color: '#2fa8ff', transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), n);
+  const core = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.55, 0), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 2.2, 2.2), toneMapped: false }), n);
+  const halo = new THREE.InstancedMesh(new THREE.SphereGeometry(1.15, 10, 8), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), n);
+  const cc = new THREE.Color();
+  orbs.forEach((o, i) => { core.setColorAt(i, cc.set(o.gold ? '#ffd166' : '#5ef0ff')); halo.setColorAt(i, cc.set(o.gold ? '#ffb000' : '#2fa8ff')); });
   core.frustumCulled = halo.frustumCulled = false;
   const zero = new THREE.Matrix4().makeScale(0, 0, 0);
   for (let i = 0; i < n; i++) { core.setMatrixAt(i, zero); halo.setMatrixAt(i, zero); }
@@ -267,7 +278,8 @@ export function makeOrbs(scene, orbs) {
         o3.position.set(LANES[o.lane], DECK + 1.7 + Math.sin(t * 4 + o.s * 0.3) * 0.25, -o.s);
         o3.rotation.set(t * 2 + o.s, t * 3, 0); o3.scale.setScalar(1);
         o3.updateMatrix(); core.setMatrixAt(i, o3.matrix);
-        o3.rotation.set(0, 0, 0); o3.scale.setScalar(0.9 + 0.12 * Math.sin(t * 8 + o.s)); o3.updateMatrix(); halo.setMatrixAt(i, o3.matrix);
+        if (o.gold) { o3.scale.setScalar(1.25); o3.updateMatrix(); core.setMatrixAt(i, o3.matrix); }
+        o3.rotation.set(0, 0, 0); o3.scale.setScalar((o.gold ? 1.3 : 0.9) + 0.12 * Math.sin(t * 8 + o.s)); o3.updateMatrix(); halo.setMatrixAt(i, o3.matrix);
       }
       core.instanceMatrix.needsUpdate = true; halo.instanceMatrix.needsUpdate = true;
     },

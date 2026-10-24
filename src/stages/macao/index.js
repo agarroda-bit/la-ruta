@@ -132,7 +132,14 @@ export default {
     const pos = car.group.position;
     const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), size2 = new THREE.Vector2();
     const fwd = new THREE.Vector3();
-    const say = (list) => { const t = Array.isArray(list) ? list[Math.floor(Math.random() * list.length)] : list; ui.say(t); tx.talkT = 7 + Math.random() * 4; };
+    // gritos y burbuja nunca a la vez: el grito corta la burbuja y la siguiente frase espera a que acabe el grito
+    let lastShout = -9, pendingSay = null;
+    const say = (list) => {
+      const t = Array.isArray(list) ? list[Math.floor(Math.random() * list.length)] : list;
+      tx.talkT = 7 + Math.random() * 4;
+      if (performance.now() - lastShout < 1150) pendingSay = t; else ui.say(t);
+    };
+    const shout = (txt, o) => { lastShout = performance.now(); ui.hideBubble(); ctx.shout(txt, o); };
 
     // ── ayudas ──
     function routePoint(d) {
@@ -178,7 +185,7 @@ export default {
       if (!F.main && qFrom.s > F.road.length * 0.75 && !st.scDone.has(from)) {
         st.scDone.add(from); st.shortcuts++;
         ctx.audio.sfx('coin', { pitch: 1.2 }); ctx.audio.sfx('star');
-        ctx.shout(`¡ATAJO! ${st.shortcuts}`, { size: 'peque', color: '#ff70d8' });
+        shout(`¡ATAJO! ${st.shortcuts}`, { size: 'peque', color: '#ff70d8' });
         st.turbo = Math.min(3, st.turbo + 0.6); st.cheerT = 1.4; ctx.vibrate(30);
         if (st.shortcuts >= 3) ctx.sticker('atajo');
         if (Math.random() < 0.8) say(ZHOU.shortcut);
@@ -202,8 +209,8 @@ export default {
         st.turbo = Math.min(3, st.turbo + 0.12);
         ctx.audio.sfx('hit', { vol: 0.35, pitch: 1.6 + Math.min(st.combo, 10) * 0.05 });
         if (st.combo >= 2) { ctx.hud.set('combo', `✦ CHISPAS ×${st.combo}`, 'izq'); ctx.hud.pop('combo'); }
-        if (st.combo === 5) ctx.shout('¡CHISPAS ×5!', { size: 'peque', color: '#ffd166' });
-        if (st.combo >= 10) { if (st.combo === 10) ctx.shout('¡LLUVIA DE CHISPAS!', { size: 'peque', color: '#ffd166' }); ctx.sticker('chispas'); }
+        if (st.combo === 5) shout('¡CHISPAS ×5!', { size: 'peque', color: '#ffd166' });
+        if (st.combo >= 10) { if (st.combo === 10) shout('¡LLUVIA DE CHISPAS!', { size: 'peque', color: '#ffd166' }); ctx.sticker('chispas'); }
       }
       st.scrapeOff = 0; st.scrape = true;
       if (st.frame % 2 === 0) fxA.emit(2, where, { colors: ['#fff3b0', '#ffd166', '#ff9f1c', '#ffffff'], vel: { x: side.x * 2 - fwd.x * 3, y: 2.5, z: side.z * 2 - fwd.z * 3 }, velSpread: 2.5, life: 0.3, size: 0.14, gravity: -14 });
@@ -211,7 +218,7 @@ export default {
     function crash(msg) {
       st.crashes++; st.combo = 0; ctx.hud.remove('combo');
       ctx.engine.shake(0.7); ctx.audio.sfx('crash'); ctx.vibrate(70);
-      ctx.shout(msg, { size: 'peque', color: '#ff6f61' });
+      shout(msg, { size: 'peque', color: '#ff6f61' });
       st.invuln = 0.8;
     }
 
@@ -280,13 +287,13 @@ export default {
           const wantDrift = inp.down('drift') && st.speed > 12 && !braking;
           if (wantDrift && !st.drifting) { st.driftDir = Math.sign(steer) || Math.sign(angleDiff(st.velYaw, st.yaw)) * -1 || 0; st.driftT = 0; ctx.audio.sfx('whoosh', { vol: 0.5 }); }
           if (!wantDrift && st.drifting) {
-            if (st.driftT > 0.4) st.drifts++;
-            if (st.driftT > 0.9) { st.miniT = 0.9; ctx.audio.sfx('boost', { vol: 0.6 }); ctx.shout('¡MINI TURBO!', { size: 'peque', color: '#c77dff' }); ctx.engine.shake(0.2); }
+            if (st.driftT > 0.15) st.drifts++;
+            if (st.driftT > 0.9) { st.miniT = 0.9; ctx.audio.sfx('boost', { vol: 0.6 }); shout('¡MINI TURBO!', { size: 'peque', color: '#c77dff' }); ctx.engine.shake(0.2); }
           }
           st.drifting = drifting = wantDrift;
           if (inp.pressed('boost')) {
             if (st.turbo >= 1 && st.boostT <= 0) {
-              st.turbo -= 1; st.boostT = 1.7; ctx.audio.sfx('boost'); ctx.shout('¡TURBO!', { size: 'peque', color: '#ffb703' }); ctx.engine.shake(0.35); ctx.vibrate(40); st.cheerT = 1;
+              st.turbo -= 1; st.boostT = 1.7; ctx.audio.sfx('boost'); shout('¡TURBO!', { size: 'peque', color: '#ffb703' }); ctx.engine.shake(0.35); ctx.vibrate(40); st.cheerT = 1;
             } else if (st.turbo < 1) ctx.audio.sfx('click', { vol: 0.5, pitch: 0.6 });
           }
         } else if (st.done) braking = true;
@@ -341,7 +348,7 @@ export default {
         const landed = vertical(st, ground, dt);
         if (landed > 0.45 && st.running) {
           st.jumps++; ctx.engine.shake(0.45 + landed * 0.3); ctx.audio.sfx('crash', { vol: 0.5, pitch: 1.3 }); ctx.vibrate(40);
-          ctx.shout(landed > 0.9 ? `¡VUELO DE ${landed.toFixed(1)} s!` : '¡QUÉ BOTE!', { size: 'peque', color: '#ffd166' });
+          shout(landed > 0.9 ? `¡VUELO DE ${landed.toFixed(1)} s!` : '¡QUÉ BOTE!', { size: 'peque', color: '#ffd166' });
           st.turbo = Math.min(3, st.turbo + 0.3); st.cheerT = 1.2;
           fxA.emit(16, tmpV.copy(pos).setY(st.y + 0.1), { colors: ['#ffd166', '#ff9f1c', '#fff'], velSpread: 7, vel: { x: 0, y: 2, z: 0 }, life: 0.5, size: 0.25, gravity: -12 });
           if (Math.random() < 0.35) say(ZHOU.jump);
@@ -361,16 +368,14 @@ export default {
         // efectos del coche
         const right = tmpV2.set(-Math.cos(st.yaw), 0, Math.sin(st.yaw)); // derecha del coche
         const back = new THREE.Vector3(-Math.sin(st.yaw), 0, -Math.cos(st.yaw));
-        if (st.brakeK > 0.4 && st.speed > 6) {
-          if (st.frame % 2 === 0) for (const s of [-1, 1]) fxA.emit(1, tmpV.copy(pos).addScaledVector(right, s * 0.6).addScaledVector(back, 1.9).setY(st.y + 0.72), { color: '#ff2d6f', vel: { x: 0, y: 0, z: 0 }, velSpread: 0.1, life: 0.28, size: 0.2, gravity: 0 });
-        }
-        if (drifting && Math.abs(slip) > 0.12 && !st.air) {
+        // derrape: chispitas pegadas a las ruedas traseras, muy cortas (nada de estela que llene la pantalla)
+        if (drifting && Math.abs(slip) > 0.12 && !st.air && st.frame % 3 === 0) {
           const charged = st.driftT > 0.9;
-          if (st.frame % 2 === 0) for (const s of [-1, 1]) fxA.emit(1, tmpV.copy(pos).addScaledVector(right, s * 0.86).addScaledVector(back, 1.3).setY(st.y + 0.1), { colors: charged ? ['#c77dff', '#e0aaff', '#ffffff'] : ['#ffd166', '#ff9f1c', '#fff3b0'], vel: { x: back.x * 1.5, y: 1.6, z: back.z * 1.5 }, velSpread: 1.5, life: 0.22, size: 0.13, gravity: -10 });
-          if (Math.random() < 0.12) fx.emit(1, tmpV.copy(pos).addScaledVector(back, 1.6).setY(st.y + 0.3), { color: '#6b5a80', vel: { x: 0, y: 0.8, z: 0 }, velSpread: 0.6, life: 0.5, size: 0.7, gravity: 1 });
+          const s = st.frame % 6 === 0 ? -1 : 1;
+          fxA.emit(1, tmpV.copy(pos).addScaledVector(right, s * 0.86).addScaledVector(back, 1.2).setY(st.y + 0.06), { colors: charged ? ['#c77dff', '#ffffff'] : ['#ffd166', '#ff9f1c'], vel: { x: 0, y: 0.8, z: 0 }, velSpread: 0.8, life: 0.12, size: 0.09, gravity: -10, spread: 0.1 });
         }
         if (st.boostT > 0 || st.miniT > 0) {
-          fxA.emit(1, tmpV.copy(pos).addScaledVector(back, 2).addScaledVector(right, 0.5).setY(st.y + 0.42), { colors: ['#ffb703', '#c77dff', '#ff70a6'], vel: { x: back.x * 5, y: 0.4, z: back.z * 5 }, velSpread: 1, life: 0.22, size: 0.24, gravity: 0 });
+          if (st.frame % 2 === 0) fxA.emit(1, tmpV.copy(pos).addScaledVector(back, 2).addScaledVector(right, 0.5).setY(st.y + 0.42), { colors: ['#ffb703', '#c77dff'], vel: { x: back.x * 3, y: 0.3, z: back.z * 3 }, velSpread: 0.6, life: 0.14, size: 0.16, gravity: 0 });
           if (st.boostT > 0) for (let k = 0; k < 2; k++) {
             const side = (Math.random() - 0.5) * 12;
             fxA.emit(1, tmpV.copy(pos).addScaledVector(fwd, 10 + Math.random() * 6).addScaledVector(right, side).setY(st.y + 0.5 + Math.random() * 3.5), { color: Math.random() < 0.5 ? '#ffffff' : '#e0aaff', vel: { x: -fwd.x * 45, y: 0, z: -fwd.z * 45 }, velSpread: 0, life: 0.22, size: 0.14, gravity: 0 });
@@ -387,7 +392,7 @@ export default {
               world.throwFruit(c.p, fwd, st.speed);
               fx.emit(5, c.p, { colors: ['#ffb347', '#ff6b6b'], vel: { x: fwd.x * 3, y: 3, z: fwd.z * 3 }, velSpread: 3, life: 0.5, size: 0.18, gravity: -12 });
               ctx.audio.sfx('hit', { vol: 0.5, pitch: 1.4 }); ctx.engine.shake(0.15);
-              if (st.crates % 3 === 1) ctx.shout('¡FRUTA AL AIRE!', { size: 'peque', color: '#8ac926' });
+              if (st.crates % 3 === 1) shout('¡FRUTA AL AIRE!', { size: 'peque', color: '#8ac926' });
             }
           });
         }
@@ -410,7 +415,7 @@ export default {
             }
             if (!b.passed && ds > 6.6) {
               b.passed = true;
-              if (Math.abs(dl) < 3.4 && b.hitCD <= 0) { st.nearMiss++; st.turbo = Math.min(3, st.turbo + 0.15); ctx.shout('¡POR LOS PELOS!', { size: 'peque', color: '#7df9d3' }); ctx.audio.sfx('whoosh'); }
+              if (Math.abs(dl) < 3.4 && b.hitCD <= 0) { st.nearMiss++; st.turbo = Math.min(3, st.turbo + 0.15); shout('¡POR LOS PELOS!', { size: 'peque', color: '#7df9d3' }); ctx.audio.sfx('whoosh'); }
             }
             if (ds < 0) b.passed = false;
           }
@@ -438,7 +443,7 @@ export default {
         }
         if (st.done) {
           st.endT += realDt;
-          if (st.win && st.endT < 3.2 && Math.random() < realDt * 2.6) fireworks();
+          if (st.win && st.endT < 4 && Math.random() < realDt * 3.4) fireworks();
           if (st.endT > 2.6 && !st.finishCalled) { st.finishCalled = true; callFinish(); }
         }
 
@@ -503,11 +508,8 @@ export default {
         st.mirror = mirrorOn;
         ui.showMirror(mirrorOn);
         // burbuja del taxista
-        tmpV.copy(taxi.group.position); tmpV.y += 2.8;
-        tmpV.project(camera);
-        if (tmpV.z < 1 && Math.abs(tmpV.x) < 0.95 && Math.abs(tmpV.y) < 0.9) ui.bubbleAt((tmpV.x * 0.5 + 0.5) * innerWidth, (-tmpV.y * 0.5 + 0.5) * innerHeight - 30, realDt);
-        else if (mirrorOn) { const r = ui.mirrorRect; ui.bubbleAt(r.x + r.w * 0.55, r.y + r.h + 18, realDt); }
-        else ui.bubbleAt(innerWidth / 2 - 60, 150, realDt);
+        if (pendingSay && performance.now() - lastShout > 1150) { ui.say(pendingSay); pendingSay = null; }
+        ui.bubbleStrip(mirrorOn, realDt);
 
         updateHud();
         Object.assign(state, {
@@ -597,8 +599,8 @@ export default {
       // adelantamientos y charla
       if (running) {
         const ahead = tx.s > st.prog;
-        if (ahead && !tx.wasAhead) { say(ZHOU.pass); ctx.audio.sfx('horn', { pitch: 1.25 }); ctx.shout('¡TE ADELANTA!', { size: 'peque', color: '#ffb703' }); }
-        if (!ahead && tx.wasAhead && st.t > 3) { say(ZHOU.passed); ctx.shout('¡ADELANTADO!', { size: 'peque', color: '#c77dff' }); st.cheerT = 1.2; }
+        if (ahead && !tx.wasAhead) { say(ZHOU.pass); ctx.audio.sfx('horn', { pitch: 1.25 }); shout('¡TE ADELANTA!', { size: 'peque', color: '#ffb703' }); }
+        if (!ahead && tx.wasAhead && st.t > 3) { say(ZHOU.passed); shout('¡ADELANTADO!', { size: 'peque', color: '#c77dff' }); st.cheerT = 1.2; }
         tx.wasAhead = ahead;
         tx.talkT -= dt;
         if (tx.talkT <= 0) { if (gap > 130) say(ZHOU.far); else if (gap < 60) say(ZHOU.chase); else tx.talkT = 3; }
@@ -617,7 +619,8 @@ export default {
       const p = (st.win ? pos : taxi.group.position).clone().addScaledVector(a.t, -(18 + Math.random() * 30)).addScaledVector(a.n, 4 + Math.random() * 26);
       p.y += 16 + Math.random() * 18;
       const cols = [['#c77dff', '#e0aaff', '#ffffff'], ['#ffb703', '#ffd166', '#ffffff'], ['#ff70a6', '#ffb703', '#c77dff']][Math.floor(Math.random() * 3)];
-      fxA.emit(60, p, { colors: cols, velSpread: 20, vel: { x: 0, y: 1, z: 0 }, life: 1.5, size: 0.9, gravity: -5, spread: 1 });
+      fxA.emit(110, p, { colors: cols, velSpread: 30, vel: { x: 0, y: 1, z: 0 }, life: 1.7, size: 1.35, gravity: -4, spread: 1 });
+      fxA.emit(30, p, { color: '#ffffff', velSpread: 12, vel: { x: 0, y: 0, z: 0 }, life: 0.6, size: 1.6, gravity: 0, spread: 2 });
       ctx.audio.sfx('firework', { vol: 0.6 });
     }
 
@@ -629,14 +632,14 @@ export default {
       ui.showMirror(false);
       if (win) {
         engine.slowmo(1.1, 0.3);
-        ctx.shout('¡AL FERRY!', { color: '#ffd166' });
+        shout('¡AL FERRY!', { color: '#ffd166' });
         ctx.audio.sfx('horn', { pitch: 0.7 });
         ctx.sticker('macao');
         st.cheerT = 4;
         setTimeout(() => say(ZHOU.win), 700);
         fireworks(); fireworks();
       } else {
-        ctx.shout('¡EL TAXI LLEGA ANTES!', { size: 'peque', color: '#ffb703' });
+        shout('¡EL TAXI LLEGA ANTES!', { size: 'peque', color: '#ffb703' });
         say(ZHOU.lose);
       }
     }

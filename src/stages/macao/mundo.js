@@ -4,7 +4,7 @@
 // Todo lo repetido va en InstancedMesh o geometrías fusionadas por material.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { flat, glow, canvasTexture } from '../../core/util.js';
+import { flat, glow, canvasTexture, mergeMeshes } from '../../core/util.js';
 import { facadeTex, signAtlas, SIGNS, SIGN_ID, softRectTex, calcadaTex, crateTex, stripeTex } from './texturas.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -113,6 +113,27 @@ export function buildWorld({ scene, rng, main, kindAt, shortcuts, events, q, mak
     }
   }
 
+  // reflejo vivo de la tira ámbar y del neón en el agua bajo los puentes (cinta aditiva que riela)
+  const shimTex = canvasTexture(64, 128, (c, W, H) => {
+    c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+    for (let i = 0; i < 70; i++) { const y = Math.random() * H, x = Math.random() * W, w = 6 + Math.random() * 26; const gr = c.createLinearGradient(x, 0, x + w, 0); const col = Math.random() < 0.75 ? '255,176,60' : '199,125,255'; gr.addColorStop(0, `rgba(${col},0)`); gr.addColorStop(0.5, `rgba(${col},${0.5 + Math.random() * 0.5})`); gr.addColorStop(1, `rgba(${col},0)`); c.fillStyle = gr; c.fillRect(x, y, w, 2 + Math.random() * 2); }
+  }); shimTex.wrapS = shimTex.wrapT = THREE.RepeatWrapping;
+  const shimMat = new THREE.MeshBasicMaterial({ map: shimTex, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+  {
+    const bm = new Array(main.n + 1).fill(0).map((_, i) => kindAt(main.dist[i]) === 'bridge' && main.pts[i].y > 1);
+    for (const sd of [-1, 1]) {
+      const pos = [], uv = [], idx = [];
+      for (let i = 0; i <= main.n; i++) {
+        const p = main.pts[i], nr = main.nors[i];
+        for (const [lat, u] of [[sd * (w2 + 1), 0], [sd * (w2 + 12), 1]]) { pos.push(p.x + nr.x * lat, WATER_Y + 0.05, p.z + nr.z * lat); uv.push(u, main.dist[i] / 10); }
+        if (i < main.n && bm[i] && bm[i + 1]) { const k = i * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); }
+      }
+      const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); gg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); gg.setIndex(idx);
+      const m = new THREE.Mesh(gg, shimMat); m.renderOrder = 1; scene.add(m);
+    }
+    anim.push((t) => { shimTex.offset.set(Math.sin(t * 0.7) * 0.05, t * 0.06); shimMat.opacity = 0.75 + Math.sin(t * 3.1) * 0.1; });
+  }
+
   // ── pilares de los puentes y farolas ──
   const pillars = [], lamps = [], pools = [], reflections = [];
   for (let s = 0; s < main.length; s += 34) {
@@ -168,11 +189,11 @@ export function buildWorld({ scene, rng, main, kindAt, shortcuts, events, q, mak
     imp.renderOrder = 1;
     scene.add(ims, imh, imp);
     // reflejos de las farolas del puente en el agua
-    const refMat = new THREE.MeshBasicMaterial({ map: softRectTex(), color: '#ffae42', transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
-    const imr = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.4, 16).rotateX(-Math.PI / 2), refMat, reflections.length);
+    const refMat = new THREE.MeshBasicMaterial({ map: softRectTex(), color: '#ffb84d', transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+    const imr = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.8, 26).rotateX(-Math.PI / 2), refMat, reflections.length);
     reflections.forEach((r, i) => { tmp.position.copy(r.p); tmp.rotation.set(0, Math.atan2(r.t.x, r.t.z) + Math.PI / 2, 0); tmp.updateMatrix(); imr.setMatrixAt(i, tmp.matrix); });
     scene.add(imr);
-    anim.push((t) => { refMat.opacity = 0.42 + Math.sin(t * 2.3) * 0.1; });
+    anim.push((t) => { refMat.opacity = 0.7 + Math.sin(t * 2.3) * 0.12; });
   }
 
   // ── neones: atlas único, quads fusionados ──
@@ -290,6 +311,44 @@ export function buildWorld({ scene, rng, main, kindAt, shortcuts, events, q, mak
         }
       }
     }
+  }
+  // farolillos rojos colgados de cables sobre la calle del casco, meciéndose
+  {
+    const strings = [];
+    for (let s = 30; s < main.length; s += 22) {
+      if (kindAt(s) !== 'city' || (s % 95) < 8) continue;
+      const a = main.at(s);
+      const pl = a.p.clone().addScaledVector(a.n, -(w2 + SIDEWALK.main)), pr = a.p.clone().addScaledVector(a.n, w2 + SIDEWALK.main);
+      if (inCorridor(pl.x, pl.z, 0.2, R0) || inCorridor(pr.x, pr.z, 0.2, R0)) continue;
+      strings.push({ a, s });
+    }
+    const per = 5, nL = strings.length * per;
+    const cable = new THREE.InstancedMesh(new THREE.BoxGeometry(0.05, 0.05, 1), flat('#1b1622'), strings.length);
+    const lantGeo = new THREE.SphereGeometry(0.34, 10, 8).scale(1, 0.85, 1); lantGeo.translate(0, -0.95, 0);
+    const lamps2 = new THREE.InstancedMesh(lantGeo, lanternMat2(), nL);
+    const capGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.12, 8); capGeo.translate(0, -0.6, 0);
+    const caps = new THREE.InstancedMesh(capGeo, flat('#ffcf5a', { emissive: '#7a4a00' }), nL);
+    const span = (w2 + SIDEWALK.main) * 2;
+    strings.forEach((st, i) => {
+      tmp.position.copy(st.a.p); tmp.position.y += 6.6; tmp.rotation.set(0, Math.atan2(st.a.n.x, st.a.n.z), 0); tmp.scale.set(1, 1, span); tmp.updateMatrix(); cable.setMatrixAt(i, tmp.matrix);
+    });
+    lamps2.frustumCulled = caps.frustumCulled = false;
+    scene.add(cable, lamps2, caps);
+    const up = new THREE.Vector3();
+    const swing = (t) => {
+      strings.forEach((st, i) => {
+        for (let k = 0; k < per; k++) {
+          const lat = (k - (per - 1) / 2) * (span / (per + 0.4));
+          const sag = 0.35 * (1 - (lat / (span / 2)) ** 2);
+          tmp.position.copy(st.a.p).addScaledVector(st.a.n, lat); tmp.position.y += 6.6 - sag;
+          const ang = Math.sin(t * 1.7 + st.s * 0.13 + k * 0.9) * 0.22;
+          tmp.rotation.set(0, 0, 0); tmp.quaternion.setFromAxisAngle(up.copy(st.a.n), ang); tmp.scale.setScalar(1); tmp.updateMatrix();
+          lamps2.setMatrixAt(i * per + k, tmp.matrix); caps.setMatrixAt(i * per + k, tmp.matrix);
+        }
+      });
+      lamps2.instanceMatrix.needsUpdate = true; caps.instanceMatrix.needsUpdate = true;
+    };
+    swing(0); anim.push(swing);
   }
   // pancartas de neón cruzando la calle principal del casco antiguo
   for (let s = 40; s < main.length; s += 95) {
@@ -535,6 +594,8 @@ export function buildWorld({ scene, rng, main, kindAt, shortcuts, events, q, mak
   };
 }
 
+function lanternMat2() { return new THREE.MeshStandardMaterial({ color: '#ff4a3d', emissive: '#e0302a', emissiveIntensity: 1.0, roughness: 0.55 }); }
+
 // Torre muy alta con mirador iluminado (inventada, sin nombre)
 function buildTower() {
   const g = new THREE.Group();
@@ -561,30 +622,72 @@ function buildTower() {
   };
 }
 
-// Fachada de iglesia en ruinas, iluminada desde abajo (genérica)
+// Fachada de iglesia en ruinas (genérica, sin nombre ni símbolos): toda geometría low-poly,
+// columnas, cornisas, ventanas en arco y frontón como mallas; luz cálida desde abajo con focos.
 function buildChurch() {
   const g = new THREE.Group();
-  const stone = new THREE.MeshStandardMaterial({ color: '#e9cf9f', emissive: '#5a3a12', emissiveIntensity: 0.9, flatShading: true, roughness: 0.9 });
-  const holeMat = new THREE.MeshBasicMaterial({ color: '#2a1850' });
-  const parts = [], holes = [];
-  const tiers = [[26, 11, 0], [23, 9, 11], [17, 8, 20], [10, 7, 28]];
-  tiers.forEach(([w, h, y], ti) => {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 1.6), stone); b.position.set(0, y + h / 2 + 3, 0); parts.push(b);
-    const cols = ti < 3 ? 6 - ti : 2;
-    for (let k = 0; k < cols; k++) { const x = -w / 2 + 1 + (k * (w - 2)) / (cols - 1); const c = new THREE.Mesh(new THREE.BoxGeometry(0.8, h - 0.6, 0.6), stone); c.position.set(x, y + h / 2 + 3, 1.0); parts.push(c); }
-    const nh = ti === 3 ? 1 : 3;
-    for (let k = 0; k < nh; k++) { const x = nh === 1 ? 0 : (k - 1) * (w / 3.4); const hm = new THREE.Mesh(new THREE.PlaneGeometry(ti ? 2.2 : 3.6, ti ? 3.6 : 6.5), holeMat); hm.position.set(x, y + 3 + (ti ? h / 2 : 3.6), 0.82); holes.push(hm); }
+  const lit = (c, e, k) => new THREE.MeshStandardMaterial({ color: c, emissive: e, emissiveIntensity: k, flatShading: true, roughness: 0.85 });
+  const tierMat = [lit('#f4d9a6', '#a0602a', 0.62), lit('#efd29c', '#8a5222', 0.52), lit('#e8c890', '#6e4019', 0.42), lit('#dfbd84', '#5a3414', 0.34)];
+  const trim = lit('#fff0cf', '#b07a3a', 0.55);
+  const hole = new THREE.MeshBasicMaterial({ color: '#241444' });
+  const add = (geo, mat, x, y, z, ry = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.y = ry; g.add(m); return m; };
+  // ventana en arco: hueco (caja + medio cilindro) con marco de piedra
+  const archWin = (x, y, w, h, mat) => {
+    const r = w / 2;
+    add(new THREE.BoxGeometry(w, h - r, 0.4), hole, x, y + (h - r) / 2, 0.66);
+    const top = add(new THREE.CylinderGeometry(r, r, 0.4, 12, 1, false, 0, Math.PI), hole, x, y + h - r, 0.66);
+    top.rotation.set(Math.PI / 2, 0, Math.PI / 2); top.rotation.order = 'ZXY';
+    const fr = add(new THREE.TorusGeometry(r + 0.12, 0.14, 4, 12, Math.PI), mat, x, y + h - r, 0.95);
+    add(new THREE.BoxGeometry(0.26, h - r, 0.3), mat, x - r - 0.12, y + (h - r) / 2, 0.95);
+    add(new THREE.BoxGeometry(0.26, h - r, 0.3), mat, x + r + 0.12, y + (h - r) / 2, 0.95);
+    add(new THREE.BoxGeometry(w + 0.8, 0.3, 0.6), mat, x, y - 0.15, 0.9);
+    return fr;
+  };
+  const tiers = [[26, 11, 3], [22, 9, 14], [16, 8, 23], [10, 6, 31]];
+  tiers.forEach(([w, h, y0], ti) => {
+    const mat = tierMat[ti];
+    add(new THREE.BoxGeometry(w, h, 1.4), mat, 0, y0 + h / 2, 0);
+    add(new THREE.BoxGeometry(w + 1, 0.55, 2.2), trim, 0, y0 + h - 0.1, 0.2);
+    add(new THREE.BoxGeometry(w + 0.6, 0.4, 1.9), trim, 0, y0 + 0.2, 0.15);
+    const cols = [6, 5, 4, 2][ti];
+    for (let k = 0; k < cols; k++) {
+      const x = -w / 2 + 1.2 + (k * (w - 2.4)) / (cols - 1);
+      add(new THREE.CylinderGeometry(0.38, 0.44, h - 1.2, 8), mat, x, y0 + h / 2, 1.05);
+      add(new THREE.BoxGeometry(1.1, 0.4, 1.1), trim, x, y0 + h - 0.75, 1.05);
+      add(new THREE.BoxGeometry(1.1, 0.4, 1.1), trim, x, y0 + 0.6, 1.05);
+    }
+    if (ti === 0) { archWin(0, y0 + 0.6, 3.6, 7.2, trim); archWin(-7.4, y0 + 1.2, 2.4, 5, trim); archWin(7.4, y0 + 1.2, 2.4, 5, trim); }
+    else if (ti < 3) { const n = ti === 1 ? 3 : 2; for (let k = 0; k < n; k++) archWin(n === 3 ? (k - 1) * 6 : (k ? 3 : -3), y0 + 1.4, 2, h - 3.4, trim); }
+    else archWin(0, y0 + 1, 2.2, 3.8, trim);
   });
-  const ped = new THREE.Mesh(new THREE.ConeGeometry(6.5, 5, 3), stone); ped.rotation.z = Math.PI; ped.rotation.y = Math.PI / 2; ped.scale.set(1, 1, 0.25); ped.position.set(0, 3 + 35 + 2, 0); ped.rotation.set(0, 0, 0); parts.push(ped);
+  // frontón triangular con óculo
+  const sh = new THREE.Shape([new THREE.Vector2(-6, 0), new THREE.Vector2(6, 0), new THREE.Vector2(0, 5)]);
+  const ped = add(new THREE.ExtrudeGeometry(sh, { depth: 1.2, bevelEnabled: false }), tierMat[3], 0, 37, -0.6);
+  const ocu = add(new THREE.CylinderGeometry(0.9, 0.9, 0.4, 14), hole, 0, 38.8, 0.7); ocu.rotation.x = Math.PI / 2;
+  add(new THREE.TorusGeometry(1.0, 0.16, 4, 14), trim, 0, 38.8, 0.75);
+  add(new THREE.BoxGeometry(13, 0.4, 1.8), trim, 0, 37, 0.1);
   // escalinata
-  for (let k = 0; k < 10; k++) { const st = new THREE.Mesh(new THREE.BoxGeometry(30 - k * 0.6, 0.3 * (k + 1), 1.2), flat('#b8a7a0')); st.position.set(0, 0.15 * (k + 1), 13 - k * 1.2); parts.push(st); }
-  const base = new THREE.Mesh(new THREE.BoxGeometry(28, 3, 2.5), stone); base.position.set(0, 1.5, 0.2); parts.push(base);
-  for (const p of parts) { p.castShadow = true; p.receiveShadow = true; g.add(p); }
-  for (const h of holes) g.add(h);
-  // foco cálido al pie
-  const glowMat = new THREE.MeshBasicMaterial({ map: softRectTex(), color: '#ffae42', transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
-  const gl = new THREE.Mesh(new THREE.PlaneGeometry(34, 20), glowMat); gl.position.set(0, 9, 1.4); g.add(gl);
-  return g;
+  for (let k = 0; k < 10; k++) add(new THREE.BoxGeometry(30 - k * 0.6, 0.3 * (k + 1), 1.2), lit('#c9b4a4', '#3a2418', 0.25), 0, 0.15 * (k + 1), 13 - k * 1.2);
+  add(new THREE.BoxGeometry(28, 3, 2.5), tierMat[0], 0, 1.5, 0.2);
+  // focos en el suelo con haces aditivos (colores por vértice, sin texturas)
+  const beam = new THREE.ConeGeometry(2.6, 18, 10, 1, true); beam.translate(0, 9, 0);
+  const cols = []; const pa = beam.attributes.position;
+  for (let i = 0; i < pa.count; i++) { const k = 1 - pa.getY(i) / 18; cols.push(1 * k, 0.68 * k, 0.32 * k); }
+  beam.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  const beamMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+  for (const x of [-10, -3.5, 3.5, 10]) {
+    add(new THREE.BoxGeometry(0.8, 0.5, 0.8), lit('#2a2030', '#000', 0), x, 3.25, 3);
+    add(new THREE.SphereGeometry(0.28, 8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffd28a').multiplyScalar(1.6), toneMapped: false }), x, 3.6, 3);
+    const b = add(beam, beamMat, x, 3.5, 2.6); b.rotation.x = -0.28; b.renderOrder = 2;
+  }
+  // fusiona por material (pocos draw calls)
+  const byMat = new Map();
+  for (const m of [...g.children]) { if (m.material === beamMat) continue; if (!byMat.has(m.material)) byMat.set(m.material, []); byMat.get(m.material).push(m); }
+  const out = new THREE.Group();
+  g.updateMatrixWorld(true);
+  for (const [mat, list] of byMat) out.add(mergeMeshes(list, mat));
+  for (const m of g.children) if (m.material === beamMat) out.add(m.clone());
+  return out;
 }
 
 // Ferry blanco con franja morada y ventanas encendidas

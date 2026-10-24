@@ -6,7 +6,7 @@ import { Particles } from '../../core/engine.js';
 import { damp, clamp, fmtTime, disposeTree, smoothstep } from '../../core/util.js';
 import { makeWorld, DECK, LANES, Z, PROM, VIEW } from './escenario.js';
 import { makeTrain, CAR1, GAP } from './tren.js';
-import { generar, buildHazards, animateHazards, makeOrbs } from './peligros.js';
+import { generar, buildHazards, animateHazards, makeOrbs, ULTIMO } from './peligros.js';
 import { Fireworks } from './fuegos.js';
 import { injectStyle, makeHud } from './estilo.js';
 import { makeHum } from './sonido.js';
@@ -24,7 +24,7 @@ export default {
   controls: {
     joystick: false, // el deslizamiento lo detecta la etapa (sin aro en pantalla)
     buttons: [
-      { id: 'boost', label: 'TURBO', keys: ['ShiftLeft', 'ShiftRight', 'Space', 'KeyW', 'ArrowUp'], pad: [0, 5, 7], color: '#ff4fa3', size: 'big', pos: { right: 22, bottom: 150 } },
+      { id: 'boost', label: 'TURBO', keys: ['ShiftLeft', 'ShiftRight', 'Space', 'KeyW', 'ArrowUp'], pad: [0, 5, 7], color: '#ff4fa3', pos: { right: 30, bottom: 136 } },
       { id: 'izq', label: '◀', keys: [], pad: [], color: '#4361ee', size: 'big', pos: { left: 16, bottom: 30 } },
       { id: 'der', label: '▶', keys: [], pad: [], color: '#4361ee', size: 'big', pos: { right: 16, bottom: 30 } },
     ],
@@ -52,6 +52,7 @@ export default {
     const orbMesh = makeOrbs(scene, orbs);
     const sparks = new Particles(scene, 900, { additive: true, size: 0.5 });
     const hud = makeHud(ctx);
+    const ORB_TOTAL = orbs.reduce((a, o) => a + o.v, 0);
     const st = {
       fase: 'intro', s: 0, L: Z.L, v: 0, kmh: 0, lane: 1, x: 0, energy: 0, turbo: false, orbs: 0, crashes: 0, lost: 0,
       t: 0, invul: 0, maxKmh: 0, tramo: 'CAMPO', tramoI: 0, combo: 0, comboT: -9, laneT: -9, score: 0, ft: 0,
@@ -136,7 +137,7 @@ export default {
     function hit(h) {
       if (h.hit) return;
       if (st.turbo && st.shieldHP > 0) {
-        h.hit = true; st.shieldHits++; st.score += 150; st.shieldHP = 0; train.shield.visible = false; st.invul = 0.6;
+        h.hit = true; st.shieldHits++; st.shieldHP = 0; train.shield.visible = false; st.invul = 0.6;
         smash(h);
         sparks.emit(50, nose(), { colors: ['#4cc9f0', '#ffffff', '#b388ff'], vel: { x: 0, y: 3, z: -st.v * 0.6 }, velSpread: 14, life: 0.7, gravity: -6 });
         ctx.shout('¡ESCUDO ROTO!', { size: 'peque', color: '#4cc9f0' });
@@ -187,17 +188,17 @@ export default {
     function nearMiss(h) {
       if (st.t - st.laneT > 0.5 || st.t - lastNear < 2) return;
       if (!h.lanes.some((l) => Math.abs(LANES[l] - st.x) < 4.3)) return;
-      lastNear = st.t; st.nearMiss++; st.score += 100;
+      lastNear = st.t; st.nearMiss++;
       ctx.shout('¡POR LOS PELOS!', { size: 'peque', color: '#ffd166', ms: 800 });
       engine.slowmo(0.28, 0.45); audio.sfx('whoosh', { pitch: 0.7, vol: 0.8 });
     }
 
     function collect(o) {
-      o.got = true; st.orbs++;
+      o.got = true; st.orbs += o.v;
+      if (o.gold) ctx.hud.pop('orbes');
       st.energy = Math.min(1, st.energy + (st.turbo ? ORB_E * 0.5 : ORB_E));
       st.combo = st.t - st.comboT < 0.7 ? st.combo + 1 : 1; st.comboT = st.t;
-      st.score += 50 + Math.min(20, st.combo) * 5;
-      audio.sfx('coin', { pitch: 1 + Math.min(14, st.combo) * 0.05, vol: 0.55 });
+      audio.sfx('coin', { pitch: (o.gold ? 1.3 : 1) + Math.min(14, st.combo) * 0.05, vol: o.gold ? 0.8 : 0.55 });
       sparks.emit(10, tmpV.set(LANES[o.lane], DECK + 1.7, -o.s), { colors: ['#5ef0ff', '#ffffff', '#2fa8ff'], vel: { x: 0, y: 2, z: -st.v * 0.85 }, velSpread: 5, life: 0.5, gravity: 0, size: 0.4 });
       ctx.hud.pop('orbes');
       if (st.combo >= 10 && st.combo % 10 === 0) ctx.shout(`¡CADENA x${st.combo}!`, { size: 'peque', color: '#5ef0ff', ms: 800 });
@@ -213,10 +214,10 @@ export default {
     function endRace(win) {
       if (st.done) return;
       st.done = true; st.win = win;
-      const total = orbs.length;
-      const s2 = st.crashes <= 1, s3 = st.crashes <= 1 && st.orbs >= Math.ceil(total * 0.72);
+      const total = ORB_TOTAL;
+      const s2 = st.crashes <= 1, s3 = st.crashes <= 1 && st.orbs >= Math.ceil(total * 0.85);
       st.stars = win ? 1 + (s2 ? 1 : 0) + (s3 ? 1 : 0) : 0;
-      const score = Math.round(st.score + st.orbs * 20 + (win ? (3 - st.crashes) * 1000 + Math.max(0, 170 - st.t) * 25 : st.s / 10));
+      const score = Math.round(win ? st.orbs * 6 + st.nearMiss * 40 + st.shieldHits * 40 + 2000 + (3 - st.crashes) * 700 + Math.max(0, 140 - st.t) * 20 : st.orbs * 3 + st.s / 20);
       const stats = [['Orbes', `${st.orbs}/${total}`], ['Choques', `${st.crashes}/3`], ['Punta', `${Math.round(st.maxKmh)} km/h`], ['Tiempo', fmtTime(st.t)]];
       if (st.shieldHits) stats.push(['Escudazos', st.shieldHits]);
       ctx.finish(win ? {
@@ -349,6 +350,14 @@ export default {
         if (ti === 3) { const fc = VIEW.at(285, 0); fw.setShow({ x: fc.x, z: fc.z, w: 150, d: 300, minH: 120, maxH: 230, rate: 0.9, scale: 1 }); }
       }
       if (ti === 2 && st.s > Z.BUND - 700 && !fw.show) { const fc = VIEW.at(285, 0); fw.setShow({ x: fc.x, z: fc.z, w: 150, d: 300, minH: 120, maxH: 230, rate: 0.35, scale: 1 }); }
+      if (!st.ultimo2 && st.s >= ULTIMO) {
+        st.ultimo2 = true; st.tramo = 'ÚLTIMO TRAMO';
+        ctx.shout('¡ÚLTIMO TRAMO!', { color: '#ffd166', ms: 1800 });
+        ctx.hud.el.classList.add('sh-ultimo');
+        audio.sfx('horn', { pitch: 1.2 }); audio.sfx('bell'); engine.shake(0.3); hud.flash('rgba(255,209,102,.35)');
+        setTimeout(() => { if (st.fase === 'carrera') ctx.shout('ORBES DORADOS x3', { size: 'peque', color: '#ffd166', ms: 1500 }); }, 2000);
+      }
+      if (st.ultimo2 && st.s >= Z.BUND - 60) { st.ultimo2 = false; ctx.hud.el.classList.remove('sh-ultimo'); }
       // chispas mientras frena en seco
       if (st.invul > 1.2) sparks.emit(3, tmpV.set(st.x + (Math.random() - 0.5) * 2.6, DECK + 0.3, -st.s - Math.random() * 20), { colors: ['#ffd166', '#ff7b00'], vel: { x: 0, y: 3, z: -st.v * 0.9 }, velSpread: 4, life: 0.5, gravity: -10, size: 0.35 });
       if (st.s >= BRAKE_AT) {
@@ -438,7 +447,7 @@ export default {
       const on = st.fase === 'carrera' || st.fase === 'llegada' || st.fase === 'perdido';
       if (hum) hum.set(k, on ? 0.04 + k * 0.08 : 0);
       if (trainSnd) trainSnd.set({ rate: k, vol: on ? 0.03 + k * 0.13 : 0 });
-      audio.intensity(st.turbo ? 1 : k * 0.8);
+      audio.intensity(st.turbo || st.ultimo2 ? 1 : k * 0.8);
     }
 
     function publish() {
@@ -454,7 +463,7 @@ export default {
       for (let i = oi; i < orbs.length && orbs[i].s - st.s < 220; i++) if (!orbs[i].got) orbesCerca.push({ d: Math.round((orbs[i].s - st.s) * 10) / 10, carril: orbs[i].lane });
       Object.assign(etapa, {
         fase: st.fase, s: Math.round(st.s), L: Z.L, progreso: Math.min(1, st.s / Z.L), carril: st.lane, x: st.x, kmh: Math.round(st.kmh),
-        energia: Math.round(st.energy * 100) / 100, turbo: st.turbo, orbes: st.orbs, orbesTotal: orbs.length, choques: st.crashes, danos: st.danos, ultimoChoque: st.ultimo || null,
+        energia: Math.round(st.energy * 100) / 100, turbo: st.turbo, orbes: st.orbs, orbesTotal: ORB_TOTAL, choques: st.crashes, danos: st.danos, ultimoChoque: st.ultimo || null,
         terminado: st.done, gano: st.win, estrellas: st.stars, maxKmh: Math.round(st.maxKmh), t: Math.round(st.t * 10) / 10,
         peligros, orbesCerca,
       });
@@ -498,13 +507,13 @@ export default {
                 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
                 b.innerHTML = `¡Lo habéis conseguido, ${esc(n[0])} y ${esc(n[1])}!<small>SHANGHÁI · FIN DE LA RUTA</small>`;
                 ctx.hud.el.appendChild(b);
-                setTimeout(() => b.remove(), 5200);
-                ctx.sticker('fuegos');
+                setTimeout(() => b.remove(), 4300);
                 audio.sfx('star'); audio.sfx('bell');
                 fw.salvo(4);
               }
               if (st.ft > 5 && !st.bigOne) { st.bigOne = true; fw.salvo(9); engine.shake(0.3); }
-              if (st.ft > 7 && !st.done) endRace(true);
+              if (st.ft > 6.7 && !st.stickerDone) { st.stickerDone = true; ctx.sticker('fuegos'); }
+              if (st.ft > 8 && !st.done) endRace(true);
             }
           }
           st.invul = Math.max(0, st.invul - dt);
@@ -520,7 +529,7 @@ export default {
           updateSpeedLines();
           fw.update(dt, engine.renderer ? engine.renderer.domElement.height / 2 : innerHeight);
           setHudWarning();
-          if (!st.finSetup) hud.update(st, orbs.length);
+          if (!st.finSetup) hud.update(st, ORB_TOTAL);
           if (tipEl) { tipT -= realDt; if (tipT <= 0 || st.turbo || st.energy < 0.999 || st.fase !== 'carrera') hideEnergyTip(); }
           const tb = turboBtn();
           if (tb) { const ready = st.energy >= 0.999 && !st.turbo && st.fase === 'carrera'; tb.el.classList.toggle('listo', ready); tb.el.classList.toggle('vacio', !ready && !st.turbo); }
@@ -544,7 +553,7 @@ export default {
       },
     };
     publish();
-    hud.update(st, orbs.length);
+    hud.update(st, ORB_TOTAL);
     return inst;
   },
 };
