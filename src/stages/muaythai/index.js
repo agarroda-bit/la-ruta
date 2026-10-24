@@ -196,9 +196,9 @@ export default {
       }
       // por encima del hombro: el propio luchador a la izquierda, el rival en el centro
       return {
-        pos: V(f.x - f.dir * (portraitCam ? 2.3 : 2.3), RING_Y + (portraitCam ? 2.6 : 2.3), side * (portraitCam ? 2.05 : 1.45)),
-        look: V(o.x + f.dir * 0.1, RING_Y + (portraitCam ? 0.85 : 0.95), side * (portraitCam ? -0.45 : -0.2)),
-        fov: portraitCam ? 56 : 50,
+        pos: V(f.x - f.dir * (st.split ? 2.7 : 2.3), RING_Y + (st.split ? 1.9 : portraitCam ? 2.6 : 2.3), side * (st.split ? 1.7 : portraitCam ? 2.05 : 1.45)),
+        look: V(o.x + f.dir * 0.1, RING_Y + (st.split ? 1.25 : portraitCam ? 0.85 : 0.95), side * (portraitCam ? -0.45 : -0.2)),
+        fov: st.split ? 60 : portraitCam ? 56 : 50,
       };
     }
     function updateCam(rig, i, dt) {
@@ -277,7 +277,7 @@ export default {
         ai.onTell = (pat, first, dur) => {
           sonido.tell(pat.id === 'elefante' ? 'kick' : 'x');
           const por = innerHeight > innerWidth;
-          capa.pop(pat.name.toUpperCase(), { size: 'mt-aviso', y: por ? 0.15 : 0.22, ms: Math.round(dur * 1000 + 250) });
+          st.avisoEls = capa.pop(pat.name.toUpperCase(), { size: 'mt-aviso', y: por ? 0.15 : 0.22, ms: Math.round(dur * 1000 + 2000) });
           if (first) capa.ayuda(pat.hint, 3000, { y: por ? 0.2 : 0.3 });
         };
       }
@@ -502,7 +502,7 @@ export default {
           ['Vida', `${Math.round(f0.hp)}`],
         ],
         moreStats: { golpes: f0.stats.landed },
-        lines: [somchaiDice(win, st.waiPrec[0], f0.stats)],
+        lines: [somchaiDice(win, st.waiPrec[0], f0.stats), ...(!win && f0.stats.landed === 0 ? [`${names[1]}: «Tranqui, que ${st.waiPrec[0] >= 0.5 ? 'el wai te ha quedado precioso' : 'en el avión nadie lo ha visto'}. La próxima, ¡a por él!»`] : [])],
         shareText: win ? (ko ? `KO a Somchai en el asalto ${ko.round} en Bangkok` : `gané a Somchai a los puntos en Bangkok`) : `${score} puntos contra Somchai en Bangkok`,
       });
     }
@@ -591,6 +591,8 @@ export default {
           for (const f of fighters) if (f) idleAnim(f, fdt);
         }
         for (const f of fighters) if (f) placeFighter(f);
+        // el cartel del ataque se retira en cuanto el aviso acaba y llega el golpe
+        if (st.avisoEls && fighters[1] && !fighters[1].tell) { st.avisoEls.forEach((e) => e.remove()); st.avisoEls = null; }
         // destellos
         for (let i = 0; i < fighters.length; i++) {
           const f = fighters[i]; if (!f) continue;

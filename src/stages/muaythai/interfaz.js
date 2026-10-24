@@ -45,7 +45,7 @@ const CSS = `
 .mt-region:not(.mitad) .mt-ayuda.lado { max-width: 40%; font-size: 14px; padding: 5px 10px; }
 .mt-pop.grande { font-size: clamp(46px, 5vw + 26px, 104px); -webkit-text-stroke: 4px #1a1036; }
 .mt-pop.mt-aviso { font-size: clamp(20px, 1.4vw + 14px, 34px); color: #ffcf3f; background: #1a1036; border: 3px solid #ffcf3f; border-radius: 14px; padding: 4px 14px; -webkit-text-stroke: 0; text-shadow: none; box-shadow: 0 4px 0 rgba(0,0,0,.5); animation: mtaviso 1.6s ease-out forwards; }
-@keyframes mtaviso { 0% { transform: translate(-50%,-50%) scale(.5); opacity: 0; } 12% { transform: translate(-50%,-50%) scale(1.12); opacity: 1; } 22% { transform: translate(-50%,-50%) scale(1); } 85% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1); } }
+@keyframes mtaviso { 0% { transform: translate(-50%,-50%) scale(.6); } 4% { transform: translate(-50%,-50%) scale(1.1); } 8%, 100% { transform: translate(-50%,-50%) scale(1); } }
 .mt-pop.rot { animation-name: mtpoprot; }
 @keyframes mtpop { 0% { transform: translate(-50%,-50%) scale(.3); opacity: 0; } 18% { transform: translate(-50%,-50%) scale(1.2); opacity: 1; } 30% { transform: translate(-50%,-50%) scale(1); } 75% { opacity: 1; } 100% { transform: translate(-50%,-110%) scale(1); opacity: 0; } }
 @keyframes mtpoprot { 0% { transform: translate(-50%,-50%) rotate(180deg) scale(.3); opacity: 0; } 18% { transform: translate(-50%,-50%) rotate(180deg) scale(1.2); opacity: 1; } 30% { transform: translate(-50%,-50%) rotate(180deg) scale(1); } 75% { opacity: 1; } 100% { transform: translate(-50%,10%) rotate(180deg) scale(1); opacity: 0; } }
@@ -257,6 +257,7 @@ export function crearCapa(hudEl) {
     },
     // texto flotante: en la región del jugador p (o en todas si p es null)
     pop(text, { p = null, color = '', size = '', y = 0.36, x = 0.5, ms = 0 } = {}) {
+      const out = [];
       for (const r of api.regions) {
         if (p !== null && r.pl >= 0 && r.pl !== p) continue;
         let xx = x;
@@ -267,9 +268,10 @@ export function crearCapa(hudEl) {
         if (color) e.style.color = color;
         e.style.left = (xx * 100) + '%'; e.style.top = (y * 100) + '%';
         if (ms) e.style.animationDuration = ms + 'ms';
-        r.el.appendChild(e);
+        r.el.appendChild(e); out.push(e);
         setTimeout(() => e.remove(), (ms || (size === 'mt-aviso' ? 1600 : 1000)) + 50);
       }
+      return out;
     },
     ayuda(html, ms = 2600, { p = null, y = 0.62 } = {}) {
       for (const r of api.regions) {
