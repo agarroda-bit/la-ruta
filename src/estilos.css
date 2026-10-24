@@ -367,3 +367,6 @@ body:not(.en-etapa) .aviso-peg.entra { transform: translate(-50%, 0); }
   .panel-pausa.panel { padding: 12px 16px; }
   .panel-pausa h2 { font-size: 20px; margin-bottom: 4px; }
 }
+@keyframes rollo2 { to { transform: translateY(calc(-100% + 100vh)); } }
+.fin-rollo { animation: rollo2 48s linear forwards; padding-bottom: 30vh; }
+.fin-cierre { margin-bottom: 0; }

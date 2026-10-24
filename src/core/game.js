@@ -142,6 +142,8 @@ export async function playStage(id, { mode = 'normal', ghostOf = null } = {}) {
       onFinish(def, mod, result, ghostRec, mode, ghostData);
     },
     exit: () => exitToMap(),
+    // cinemáticas: esconde pausa y controles táctiles
+    cinematic(on) { pauseButton(!on); if (on) input.hideTouch(); else input.showTouch(); },
   };
 
   hud.mount('tema-' + id);

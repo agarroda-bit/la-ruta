@@ -14,6 +14,7 @@ export function openFinale(stages, { onClose } = {}) {
     const t = isFinite(d.bestTime) ? fmtTime(d.bestTime) : '—';
     return `<div class="fin-etapa"><span>${s.num}. ${esc(s.name)}</span><span class="fin-est">${'★'.repeat(d.stars || 0)}<i>${'☆'.repeat(3 - (d.stars || 0))}</i></span><span>${t}</span></div>`;
   }).join('');
+  document.querySelectorAll('.dialogo').forEach((d) => d.remove());
   audio.music('final');
   const s = screen('final', `
     <div class="fin-rollo">
@@ -24,14 +25,8 @@ export function openFinale(stages, { onClose } = {}) {
       ${rows}
       <h3>En números</h3>
       <div class="fin-nums">
-        <div><b>${st.cocos | 0}</b> cocos</div>
-        <div><b>${st.olas | 0}</b> olas saltadas</div>
-        <div><b>${st.turistas | 0}</b> turistas llevados</div>
-        <div><b>${st.golpes | 0}</b> golpes en el ring</div>
-        <div><b>${st.atajos | 0}</b> atajos en Macao</div>
-        <div><b>${st.energia | 0}</b> orbes de energía</div>
-        <div><b>${st.partidas | 0}</b> partidas</div>
-        <div><b>${st.fotos | 0}</b> fotos</div>
+        ${[[st.cocos, 'cocos'], [st.olas, 'olas saltadas'], [st.turistas, 'turistas llevados'], [st.golpes, 'golpes en el ring'], [st.atajos, 'atajos en Macao'], [st.energia, 'orbes de energía'], [st.partidas, 'partidas'], [st.fotos, 'fotos']]
+          .filter(([v]) => (v | 0) > 0).map(([v, l]) => `<div><b>${v | 0}</b> ${l}</div>`).join('')}
         <div><b>${nPeg}/${PEGATINAS.length}</b> pegatinas</div>
         <div><b>${save.totalStars()}/${stages.length * 3}</b> estrellas</div>
       </div>
@@ -51,4 +46,5 @@ export function openFinale(stages, { onClose } = {}) {
   const back = async () => { await s.close(); onClose && onClose(); };
   $('.fin-botones', s).append(button('Saltar ⏭', back, 'secundario'));
   $('.fin-cierre', s).append(button('Volver al mapa ✈', back, 'grande'));
+  $('.fin-rollo', s).addEventListener('animationend', () => { const b = $('.fin-botones', s); if (b) b.style.display = 'none'; });
 }

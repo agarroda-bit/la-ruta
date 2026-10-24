@@ -189,7 +189,7 @@ async function showMap(focusId) {
     for (const st of STAGES) {
       const p = map.screenPos(st.id), el = labelEls[st.id];
       // por debajo de la barra superior y por encima de las cartas; fuera de cuadro, oculta
-      const top = 78, bottom = innerHeight - (innerHeight > 500 ? 300 : 190);
+      const top = 112, bottom = innerHeight - (innerHeight > 500 ? 300 : 190);
       el.style.transform = `translate(${p.x}px, ${Math.max(top, p.y)}px) translate(-50%, -100%)`;
       el.style.visibility = p.visible && p.y > top - 40 && p.y < bottom && p.x > -40 && p.x < innerWidth + 40 ? '' : 'hidden';
       el.classList.toggle('sel', st.id === sel);
